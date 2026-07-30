@@ -19,6 +19,10 @@
       <h1 class="brand-title">Study Quest</h1>
     </div>
     <p class="brand-tagline">Level up your focus. Complete quests. Earn XP.</p>
+    <p class="token-balance" aria-live="polite">
+      <span class="token-icon" aria-hidden="true">◆</span>
+      <span id="token-count">0</span> tokens
+    </p>
   </header>
 
   <main class="layout">
@@ -137,7 +141,33 @@
         </button>
       </div>
     </section>
+
+    <section class="panel shop-panel" aria-labelledby="shop-heading">
+      <div class="panel-head">
+        <h2 id="shop-heading">Break Shop</h2>
+        <span class="panel-meta">Spend tokens on themes &amp; games</span>
+      </div>
+      <p class="shop-intro">Earn <strong>10 tokens</strong> each time you level up. Unlock themes and play break games between study sessions.</p>
+
+      <h3 class="shop-subhead">Themes</h3>
+      <div class="shop-grid" id="theme-shop"></div>
+
+      <h3 class="shop-subhead">Break Games</h3>
+      <div class="shop-grid" id="game-shop"></div>
+    </section>
   </main>
+
+  <div class="game-modal" id="game-modal" hidden>
+    <div class="game-modal-backdrop" data-close-game></div>
+    <div class="game-modal-card" role="dialog" aria-modal="true" aria-labelledby="game-title">
+      <div class="game-modal-head">
+        <h2 id="game-title">Break Game</h2>
+        <button type="button" class="btn btn-ghost" id="game-close" data-close-game>Close</button>
+      </div>
+      <p class="game-status" id="game-status"></p>
+      <div class="game-stage" id="game-stage"></div>
+    </div>
+  </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
