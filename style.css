@@ -1182,13 +1182,19 @@ body[data-theme="sports"] .bg-glow {
   display: none;
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
 }
 
 body[data-theme="sports"] .sports-scene {
   display: block;
+}
+
+.site-header,
+.layout {
+  position: relative;
+  z-index: 1;
 }
 
 .sports-sky {

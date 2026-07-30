@@ -1,6 +1,29 @@
 (() => {
   "use strict";
 
+  const APP_BASE = (() => {
+    const script = document.querySelector('script[src*="script.js"]');
+    if (script?.src) return new URL(".", script.src).href;
+    return new URL(".", window.location.href).href;
+  })();
+
+  function assetUrl(relativePath) {
+    return new URL(relativePath, APP_BASE).href;
+  }
+
+  function loadSportsBallImages() {
+    document.querySelectorAll("img.sports-ball[data-ball]").forEach((img) => {
+      const name = img.dataset.ball;
+      if (!name) return;
+      img.decoding = "async";
+      img.loading = "eager";
+      img.src = assetUrl(`assets/balls/${name}.png`);
+      img.onerror = () => {
+        console.warn(`Sports ball failed to load: ${img.src}`);
+      };
+    });
+  }
+
   const STORAGE_KEY = "study-quest-state-v1";
   const XP_PER_FOCUS = 25;
   const XP_PER_LEVEL = 100;
@@ -1400,6 +1423,7 @@
   });
 
   applyTheme(state.activeTheme);
+  loadSportsBallImages();
   renderQuests();
   renderXp();
   renderTokens();
