@@ -1289,186 +1289,53 @@ body[data-theme="sports"] .sports-scene {
 
 .sports-ball {
   position: absolute;
-  border-radius: 50%;
-  overflow: hidden;
-  box-shadow:
-    0 10px 22px rgba(20, 50, 40, 0.35),
-    inset 0 -6px 10px rgba(0, 0, 0, 0.18),
-    inset 0 6px 10px rgba(255, 255, 255, 0.28);
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 16px rgba(20, 50, 40, 0.35));
   animation: sports-float 6s ease-in-out infinite;
-}
-
-.sports-ball .ball-shine {
-  position: absolute;
-  top: 12%;
-  left: 16%;
-  width: 34%;
-  height: 22%;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.45);
-  filter: blur(1px);
-  z-index: 3;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .sports-ball-soccer {
-  width: 62px;
-  height: 62px;
+  width: 68px;
+  height: 68px;
   top: 14%;
   left: 7%;
-  background: radial-gradient(circle at 32% 28%, #ffffff, #e8e8e8 70%, #cfcfcf);
   animation-delay: 0s;
 }
 
-.sports-ball-soccer .ball-patch {
-  position: absolute;
-  width: 28%;
-  height: 28%;
-  background: #1a1a1a;
-  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
-  z-index: 1;
-}
-
-.sports-ball-soccer .ball-patch-1 { top: 34%; left: 36%; }
-.sports-ball-soccer .ball-patch-2 { top: 12%; left: 14%; transform: scale(0.72) rotate(-20deg); }
-.sports-ball-soccer .ball-patch-3 { top: 14%; right: 12%; left: auto; transform: scale(0.72) rotate(24deg); }
-
 .sports-ball-basketball {
-  width: 66px;
-  height: 66px;
+  width: 74px;
+  height: 74px;
   top: 24%;
   right: 9%;
-  background: radial-gradient(circle at 32% 28%, #ffb56b 0%, #e67e22 52%, #b84a12 100%);
   animation-delay: -1.2s;
 }
 
-.sports-ball-basketball .ball-line {
-  position: absolute;
-  background: rgba(70, 28, 8, 0.7);
-  z-index: 1;
-}
-
-.sports-ball-basketball .ball-line-v {
-  top: 6%;
-  bottom: 6%;
-  left: 48%;
-  width: 3px;
-  border-radius: 2px;
-}
-
-.sports-ball-basketball .ball-line-h {
-  left: 6%;
-  right: 6%;
-  top: 48%;
-  height: 3px;
-  border-radius: 2px;
-}
-
-.sports-ball-basketball .ball-line-c {
-  inset: 10%;
-  border: 3px solid rgba(70, 28, 8, 0.7);
-  border-radius: 50%;
-  background: transparent;
-  transform: scaleX(0.42);
-}
-
 .sports-ball-tennis {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   bottom: 24%;
   left: 14%;
-  background: radial-gradient(circle at 30% 28%, #f9ff7a, #d4e512 65%, #a8b80d);
   animation-delay: -2.4s;
 }
 
-.sports-ball-tennis .ball-seam {
-  position: absolute;
-  width: 120%;
-  height: 58%;
-  left: -10%;
-  border: 2.5px solid rgba(255, 255, 255, 0.92);
-  border-radius: 50%;
-  border-bottom-color: transparent;
-  border-left-color: transparent;
-  z-index: 1;
-}
-
-.sports-ball-tennis .ball-seam-a { top: 2%; transform: rotate(-28deg); }
-.sports-ball-tennis .ball-seam-b { bottom: 2%; transform: rotate(152deg); }
-
 .sports-ball-football {
-  width: 74px;
-  height: 44px;
-  top: 40%;
-  left: 76%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 30% 32%, #a06a38, #6b4120 62%, #3d2410);
+  width: 86px;
+  height: 86px;
+  top: 38%;
+  left: 74%;
   animation-delay: -3.1s;
 }
 
-.sports-ball-football .ball-stripe {
-  position: absolute;
-  top: 10%;
-  bottom: 10%;
-  left: 14%;
-  right: 14%;
-  border: 2px solid rgba(245, 245, 245, 0.9);
-  border-radius: 50%;
-  border-top-color: transparent;
-  border-bottom-color: transparent;
-  z-index: 1;
-}
-
-.sports-ball-football .ball-lace {
-  position: absolute;
-  top: 44%;
-  left: 28%;
-  right: 28%;
-  height: 3px;
-  background: #f7f7f7;
-  border-radius: 2px;
-  z-index: 2;
-  box-shadow:
-    0 -7px 0 -1px #f7f7f7,
-    0 7px 0 -1px #f7f7f7,
-    -6px 0 0 -1px #f7f7f7,
-    6px 0 0 -1px #f7f7f7,
-    -10px 0 0 -1px #f7f7f7,
-    10px 0 0 -1px #f7f7f7;
-}
-
 .sports-ball-baseball {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   bottom: 30%;
   right: 16%;
-  background: radial-gradient(circle at 30% 26%, #ffffff, #f0ebe3 70%, #d9d0c4);
   animation-delay: -4s;
-}
-
-.sports-ball-baseball .ball-stitch {
-  position: absolute;
-  top: 8%;
-  bottom: 8%;
-  width: 36%;
-  border: 2.5px solid #d64545;
-  border-radius: 50%;
-  z-index: 1;
-}
-
-.sports-ball-baseball .ball-stitch-l {
-  left: 4%;
-  border-right-color: transparent;
-  border-top-color: transparent;
-  border-bottom-color: transparent;
-  box-shadow: inset -1px 0 0 #d64545;
-}
-
-.sports-ball-baseball .ball-stitch-r {
-  right: 4%;
-  border-left-color: transparent;
-  border-top-color: transparent;
-  border-bottom-color: transparent;
-  box-shadow: inset 1px 0 0 #d64545;
 }
 
 @keyframes sports-float {
