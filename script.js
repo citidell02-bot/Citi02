@@ -780,7 +780,7 @@
     renderQuests();
   }
 
-  function setMode(mode) {
+  function setMode(mode, presetMinutes) {
     const wasRunning = timer.running;
     stopTimer(false);
     timer.mode = mode;
@@ -791,15 +791,26 @@
 
     const labels = { focus: "Focus", short: "Short Break", long: "Long Break" };
     els.timerMode.textContent = labels[mode] || "Focus";
+
+    if (Number.isFinite(presetMinutes) && presetMinutes > 0) {
+      const total = Math.round(presetMinutes) * 60;
+      timer.customDurationSeconds = total;
+      timer.minutes = Math.round(presetMinutes);
+      timer.remaining = total;
+      forceTimerInputs();
+      showToast(`${labels[mode] || "Timer"} · ${formatTime(total)}`);
+    } else if (wasRunning && timer.customDurationSeconds > 0) {
+      // Keep the user's custom time; restore it if they switched modes mid-run
+      timer.remaining = timer.customDurationSeconds;
+    }
+
     els.timerHint.textContent =
       mode === "focus"
         ? "Set a custom study time, then Start. Focus sessions earn +25 XP."
-        : "Break mode — your custom time stays set. Soft break chimes play on start & finish.";
+        : mode === "short"
+          ? "Short break set to 5:00. Press Start when you're ready."
+          : "Break mode — set a custom time or keep your saved time, then Start.";
 
-    // Keep the user's custom time; restore it if they switched modes mid-run
-    if (wasRunning && timer.customDurationSeconds > 0) {
-      timer.remaining = timer.customDurationSeconds;
-    }
     renderTimer();
   }
 
@@ -1382,9 +1393,7 @@
 
   els.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      const mode = btn.dataset.mode;
-      const minutes = Number(btn.dataset.minutes);
-      setMode(mode, minutes);
+      setMode(btn.dataset.mode);
     });
   });
 
