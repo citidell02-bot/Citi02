@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "study-quest-state-v1";
   const XP_PER_FOCUS = 25;
-  const XP_BASE = 100;
+  const XP_PER_LEVEL = 100;
   const MAX_LEVEL = 100;
   const RANK_TIERS = [
     { max: 10, name: "Beginner" },
