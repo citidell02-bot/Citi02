@@ -149,7 +149,7 @@
   let timer = {
     mode: "focus",
     minutes: 0,
-    durationSeconds: 0,
+    customDurationSeconds: 0,
     remaining: 0,
     running: false,
     intervalId: null,
@@ -693,20 +693,30 @@
     if (timer.running || timer.suppressInputCommit) return;
 
     const minutes = clampInt(els.timerMinutes.value, 0, 180, 0);
-    let seconds = clampInt(els.timerSeconds.value, 0, 59, 0);
+    const seconds = clampInt(els.timerSeconds.value, 0, 59, 0);
     let total = minutes * 60 + seconds;
 
     if (total <= 0) {
-      total = Math.max(60, timer.durationSeconds || 60);
+      timer.remaining = 0;
+      if (commitDuration) {
+        timer.customDurationSeconds = 0;
+        timer.minutes = 0;
+      }
+      forceTimerInputs();
+      els.timerToggle.textContent = "Start";
+      document.title = "Study Quest";
+      return;
     }
 
-    const previousRemaining = timer.remaining;
     timer.remaining = total;
 
-    // Only update the configured reset duration when the user actually changed the time
-    if (commitDuration && total !== previousRemaining) {
-      timer.durationSeconds = total;
+    if (commitDuration) {
+      const changed = total !== timer.customDurationSeconds;
+      timer.customDurationSeconds = total;
       timer.minutes = Math.max(1, Math.round(total / 60));
+      if (changed) {
+        showToast(`Custom time set · ${formatTime(total)}`);
+      }
     }
 
     forceTimerInputs();
@@ -770,12 +780,10 @@
     renderQuests();
   }
 
-  function setMode(mode, minutes) {
+  function setMode(mode) {
+    const wasRunning = timer.running;
     stopTimer(false);
     timer.mode = mode;
-    timer.minutes = minutes;
-    timer.durationSeconds = minutes * 60;
-    timer.remaining = minutes * 60;
 
     els.modeButtons.forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === mode);
@@ -785,9 +793,13 @@
     els.timerMode.textContent = labels[mode] || "Focus";
     els.timerHint.textContent =
       mode === "focus"
-        ? "Complete a focus session to earn +25 XP. Study chime plays on start & finish."
-        : "Break time — soft break chimes play on start & finish. Try a Break Shop game.";
+        ? "Set a custom study time, then Start. Focus sessions earn +25 XP."
+        : "Break mode — your custom time stays set. Soft break chimes play on start & finish.";
 
+    // Keep the user's custom time; restore it if they switched modes mid-run
+    if (wasRunning && timer.customDurationSeconds > 0) {
+      timer.remaining = timer.customDurationSeconds;
+    }
     renderTimer();
   }
 
@@ -802,10 +814,18 @@
 
   function startTimer() {
     if (timer.running) return;
+
+    if (timer.customDurationSeconds <= 0) {
+      showToast("Enter a custom time first");
+      els.timerMinutes.focus();
+      return;
+    }
+
     if (timer.remaining <= 0) {
-      timer.remaining = timer.durationSeconds || timer.minutes * 60;
+      timer.remaining = timer.customDurationSeconds;
       forceTimerInputs();
     }
+
     timer.running = true;
     timer.intervalId = setInterval(tick, 1000);
     playTimerModeSound("start");
@@ -830,25 +850,36 @@
   }
 
   function resetTimer() {
-    // Ignore blur/change commits caused by clicking Reset while editing the clock
     timer.suppressInputCommit = true;
     stopTimer(false);
-    timer.remaining = timer.durationSeconds || timer.minutes * 60;
+
+    if (timer.customDurationSeconds <= 0) {
+      timer.remaining = 0;
+      forceTimerInputs();
+      els.timerDisplay.classList.remove("is-running");
+      els.timerToggle.textContent = "Start";
+      document.title = "Study Quest";
+      showToast("Set a custom time first");
+      window.setTimeout(() => {
+        timer.suppressInputCommit = false;
+      }, 0);
+      return;
+    }
+
+    timer.remaining = timer.customDurationSeconds;
     forceTimerInputs();
     els.timerDisplay.classList.remove("is-running");
     els.timerToggle.textContent = "Start";
     document.title = "Study Quest";
-    showToast("Timer reset");
+    showToast(`Reset to ${formatTime(timer.customDurationSeconds)}`);
     window.setTimeout(() => {
       timer.suppressInputCommit = false;
     }, 0);
   }
 
   function completeSession() {
-    const completedMinutes = Math.max(
-      1,
-      Math.round((timer.durationSeconds || timer.minutes * 60) / 60)
-    );
+    const completedSeconds = timer.customDurationSeconds || 0;
+    const completedMinutes = Math.max(1, Math.round(completedSeconds / 60));
     stopTimer(false);
     timer.remaining = 0;
     renderTimer();
@@ -876,7 +907,7 @@
       });
     }
 
-    timer.remaining = timer.durationSeconds || timer.minutes * 60;
+    timer.remaining = timer.customDurationSeconds || 0;
     renderTimer();
   }
 
