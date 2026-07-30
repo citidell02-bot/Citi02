@@ -39,6 +39,7 @@
     xpBar: document.getElementById("xp-bar"),
     xpBarFill: document.getElementById("xp-bar-fill"),
     maxLevelToggle: document.getElementById("max-level-toggle"),
+    goMaxLevel: document.getElementById("go-max-level"),
     toast: document.getElementById("toast"),
   };
 

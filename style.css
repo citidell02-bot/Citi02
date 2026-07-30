@@ -641,7 +641,9 @@ body {
 
 .xp-options {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.55rem;
   margin-top: 1rem;
 }
 
