@@ -31,7 +31,7 @@
       id: "sports",
       name: "Sports Arena",
       cost: 20,
-      desc: "Turf green and jersey-red game day energy.",
+      desc: "Stadium field, floating balls, and game-day colors.",
       swatch: "linear-gradient(90deg, #2ecc71, #e74c3c)",
     },
     {

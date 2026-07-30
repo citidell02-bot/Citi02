@@ -1151,8 +1151,8 @@ body {
 
 /* Theme packs */
 body[data-theme="sports"] {
-  --bg-deep: #0a120e;
-  --bg-panel: rgba(12, 28, 18, 0.88);
+  --bg-deep: #07140c;
+  --bg-panel: rgba(10, 26, 16, 0.9);
   --bg-panel-edge: rgba(46, 204, 113, 0.3);
   --text: #f2fff6;
   --text-muted: #9bb8a4;
@@ -1160,6 +1160,250 @@ body[data-theme="sports"] {
   --neon-magenta: #e74c3c;
   --neon-lime: #f1c40f;
   --shadow-neon: 0 0 24px rgba(46, 204, 113, 0.3);
+}
+
+body[data-theme="sports"] .bg-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 2px, transparent 2px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 2px, transparent 2px);
+  background-size: 72px 72px;
+  opacity: 0.35;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
+}
+
+body[data-theme="sports"] .bg-glow {
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 100%, rgba(46, 204, 113, 0.28), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 15% 10%, rgba(241, 196, 15, 0.18), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 85% 12%, rgba(231, 76, 60, 0.16), transparent 50%);
+}
+
+.sports-scene {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body[data-theme="sports"] .sports-scene {
+  display: block;
+}
+
+.sports-field {
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  width: 140%;
+  height: 48%;
+  transform: translateX(-50%) perspective(600px) rotateX(58deg);
+  border-radius: 50% 50% 0 0 / 18% 18% 0 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #1f8f4e 0 48px,
+      #247a45 48px 96px
+    );
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.35),
+    inset 0 0 80px rgba(0, 0, 0, 0.25);
+  opacity: 0.55;
+}
+
+.sports-field::before {
+  content: "";
+  position: absolute;
+  inset: 18% 28%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 8px;
+}
+
+.sports-field::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+}
+
+.sports-stands {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(8, 18, 12, 0.2), transparent 40%),
+    radial-gradient(ellipse 90% 35% at 50% -5%, rgba(241, 196, 15, 0.2), transparent 60%);
+}
+
+.sports-ball {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  animation: sports-float 6s ease-in-out infinite;
+}
+
+.sports-ball-soccer {
+  width: 58px;
+  height: 58px;
+  top: 18%;
+  left: 8%;
+  background:
+    radial-gradient(circle at 30% 30%, #fff 0 36%, transparent 37%),
+    conic-gradient(
+      from 20deg,
+      #111 0 40deg,
+      #fff 40deg 80deg,
+      #111 80deg 120deg,
+      #fff 120deg 160deg,
+      #111 160deg 200deg,
+      #fff 200deg 240deg,
+      #111 240deg 280deg,
+      #fff 280deg 320deg,
+      #111 320deg 360deg
+    );
+  animation-delay: 0s;
+}
+
+.sports-ball-basketball {
+  width: 64px;
+  height: 64px;
+  top: 28%;
+  right: 10%;
+  background:
+    radial-gradient(circle at 32% 28%, #ffb070 0%, #e67e22 55%, #c0392b 100%);
+  box-shadow:
+    inset 0 0 0 2px rgba(80, 30, 10, 0.35),
+    0 8px 20px rgba(0, 0, 0, 0.35);
+  animation-delay: -1.2s;
+}
+
+.sports-ball-basketball::before,
+.sports-ball-basketball::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border: 2px solid rgba(80, 30, 10, 0.55);
+  border-radius: 50%;
+}
+
+.sports-ball-basketball::before {
+  transform: scaleX(0.45);
+}
+
+.sports-ball-basketball::after {
+  border-left: none;
+  border-right: none;
+  inset: 42% 8%;
+  border-radius: 0;
+}
+
+.sports-ball-tennis {
+  width: 42px;
+  height: 42px;
+  bottom: 22%;
+  left: 16%;
+  background: radial-gradient(circle at 30% 30%, #f8ff6a, #c6e014 70%, #9bb00c);
+  animation-delay: -2.4s;
+}
+
+.sports-ball-tennis::before,
+.sports-ball-tennis::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 55%;
+  left: -10%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+}
+
+.sports-ball-tennis::before {
+  top: 5%;
+  transform: rotate(-25deg);
+}
+
+.sports-ball-tennis::after {
+  bottom: 5%;
+  transform: rotate(155deg);
+}
+
+.sports-ball-football {
+  width: 70px;
+  height: 42px;
+  top: 42%;
+  left: 78%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 35%, #8b5a2b, #5d3a1a 70%, #3e2410);
+  animation-delay: -3.1s;
+}
+
+.sports-ball-football::before {
+  content: "";
+  position: absolute;
+  top: 45%;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: #f5f5f5;
+  box-shadow:
+    0 -6px 0 -1px #f5f5f5,
+    0 6px 0 -1px #f5f5f5;
+}
+
+.sports-ball-baseball {
+  width: 46px;
+  height: 46px;
+  bottom: 28%;
+  right: 18%;
+  background: radial-gradient(circle at 30% 28%, #fff, #e8e0d4 75%, #cfc4b4);
+  animation-delay: -4s;
+}
+
+.sports-ball-baseball::before,
+.sports-ball-baseball::after {
+  content: "";
+  position: absolute;
+  top: 8%;
+  bottom: 8%;
+  width: 34%;
+  border: 2px solid #e74c3c;
+  border-top-color: transparent;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+}
+
+.sports-ball-baseball::before {
+  left: 6%;
+  border-right-color: transparent;
+}
+
+.sports-ball-baseball::after {
+  right: 6%;
+  border-left-color: transparent;
+}
+
+@keyframes sports-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-14px) rotate(4deg); }
+}
+
+@media (max-width: 700px) {
+  .sports-ball-football,
+  .sports-ball-baseball {
+    display: none;
+  }
+
+  .sports-ball-soccer,
+  .sports-ball-basketball,
+  .sports-ball-tennis {
+    transform: scale(0.85);
+  }
 }
 
 body[data-theme="forest"] {
