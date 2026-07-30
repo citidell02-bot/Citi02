@@ -5,6 +5,13 @@
   const XP_PER_FOCUS = 25;
   const XP_BASE = 100;
   const MAX_LEVEL = 100;
+  const RANK_TIERS = [
+    { max: 10, name: "Beginner" },
+    { max: 20, name: "Amateur" },
+    { max: 30, name: "Novice" },
+    { max: 40, name: "Apprentice" },
+    { max: 50, name: "Expert" },
+  ];
   const DIFFICULTY = {
     easy: { label: "Easy", xp: 10 },
     medium: { label: "Medium", xp: 20 },
@@ -74,6 +81,13 @@
     return Math.round(XP_BASE * Math.pow(1.35, level - 1));
   }
 
+  function rankForLevel(level) {
+    for (const tier of RANK_TIERS) {
+      if (level <= tier.max) return tier.name;
+    }
+    return null;
+  }
+
   function getLevelInfo(totalXp) {
     let level = 1;
     let remaining = totalXp;
@@ -92,6 +106,7 @@
         needed: need,
         percent: 100,
         isMax: true,
+        rank: rankForLevel(MAX_LEVEL),
       };
     }
 
@@ -101,6 +116,7 @@
       needed: need,
       percent: Math.min(100, Math.round((remaining / need) * 100)),
       isMax: false,
+      rank: rankForLevel(level),
     };
   }
 
@@ -206,7 +222,15 @@
 
     if (after.level > before.level) {
       playLevelUpSound();
-      showToast(`Level up! Now Level ${after.level}`);
+      if (after.isMax) {
+        showToast(`Max level reached! Level ${MAX_LEVEL}`);
+      } else if (after.rank && after.rank !== before.rank) {
+        showToast(`Rank up! ${after.rank} · Level ${after.level}`);
+      } else if (after.rank) {
+        showToast(`Level up! ${after.rank} · Level ${after.level}`);
+      } else {
+        showToast(`Level up! Now Level ${after.level}`);
+      }
     } else {
       playXpSound();
       showToast(`+${amount} XP — ${reason}`);
@@ -268,7 +292,15 @@
 
   function renderXp() {
     const info = getLevelInfo(state.totalXp);
-    els.levelLabel.textContent = info.isMax ? `Level ${MAX_LEVEL} · MAX` : `Level ${info.level}`;
+    if (info.isMax) {
+      els.levelLabel.textContent = info.rank
+        ? `${info.rank} · Level ${MAX_LEVEL} · MAX`
+        : `Level ${MAX_LEVEL} · MAX`;
+    } else if (info.rank) {
+      els.levelLabel.textContent = `${info.rank} · Level ${info.level}`;
+    } else {
+      els.levelLabel.textContent = `Level ${info.level}`;
+    }
     els.totalXp.textContent = String(state.totalXp);
     els.questsCleared.textContent = String(state.questsCleared);
     els.sessionsDone.textContent = String(state.sessionsDone);
