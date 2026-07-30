@@ -4,6 +4,7 @@
   const STORAGE_KEY = "study-quest-state-v1";
   const XP_PER_FOCUS = 25;
   const XP_BASE = 100;
+  const MAX_LEVEL = 100;
   const DIFFICULTY = {
     easy: { label: "Easy", xp: 10 },
     medium: { label: "Medium", xp: 20 },
@@ -78,10 +79,20 @@
     let remaining = totalXp;
     let need = xpForLevel(level);
 
-    while (remaining >= need) {
+    while (level < MAX_LEVEL && remaining >= need) {
       remaining -= need;
       level += 1;
       need = xpForLevel(level);
+    }
+
+    if (level >= MAX_LEVEL) {
+      return {
+        level: MAX_LEVEL,
+        current: remaining,
+        needed: need,
+        percent: 100,
+        isMax: true,
+      };
     }
 
     return {
@@ -89,6 +100,7 @@
       current: remaining,
       needed: need,
       percent: Math.min(100, Math.round((remaining / need) * 100)),
+      isMax: false,
     };
   }
 
@@ -256,15 +268,20 @@
 
   function renderXp() {
     const info = getLevelInfo(state.totalXp);
-    els.levelLabel.textContent = `Level ${info.level}`;
+    els.levelLabel.textContent = info.isMax ? `Level ${MAX_LEVEL} · MAX` : `Level ${info.level}`;
     els.totalXp.textContent = String(state.totalXp);
     els.questsCleared.textContent = String(state.questsCleared);
     els.sessionsDone.textContent = String(state.sessionsDone);
     els.xpCurrent.textContent = `${info.current} XP`;
-    els.xpNeeded.textContent = `${info.needed} XP to Level ${info.level + 1}`;
+    els.xpNeeded.textContent = info.isMax
+      ? "Max level reached"
+      : `${info.needed} XP to Level ${info.level + 1}`;
     els.xpBarFill.style.width = `${info.percent}%`;
     els.xpBar.setAttribute("aria-valuenow", String(info.percent));
-    els.xpBar.setAttribute("aria-valuetext", `${info.current} of ${info.needed} XP`);
+    els.xpBar.setAttribute(
+      "aria-valuetext",
+      info.isMax ? "Max level reached" : `${info.current} of ${info.needed} XP`
+    );
   }
 
   function renderTimer() {
