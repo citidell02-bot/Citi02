@@ -142,11 +142,13 @@ body {
   .layout {
     grid-template-columns: 1.15fr 0.85fr;
     grid-template-areas:
+      "streak streak"
       "quests timer"
       "xp xp"
       "shop shop";
   }
 
+  .streak-panel { grid-area: streak; }
   .quest-panel { grid-area: quests; }
   .timer-panel { grid-area: timer; }
   .xp-panel { grid-area: xp; }
@@ -166,6 +168,96 @@ body {
 .timer-panel { animation-delay: 0.08s; }
 .xp-panel { animation-delay: 0.16s; }
 .shop-panel { animation-delay: 0.22s; }
+.streak-panel { animation-delay: 0.04s; }
+
+.streak-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.streak-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.2rem;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  background: rgba(4, 8, 18, 0.45);
+}
+
+.streak-day-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.streak-day-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(138, 160, 194, 0.25);
+  border: 1px solid rgba(138, 160, 194, 0.35);
+}
+
+.streak-day.is-done .streak-day-dot {
+  background: var(--neon-lime);
+  border-color: var(--neon-lime);
+  box-shadow: 0 0 12px rgba(184, 255, 60, 0.45);
+}
+
+.streak-day.is-today {
+  border-color: rgba(0, 229, 255, 0.45);
+}
+
+.streak-day.is-today .streak-day-label {
+  color: var(--neon-cyan);
+}
+
+.streak-bar-wrap {
+  margin-bottom: 0.65rem;
+}
+
+.streak-bar-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.streak-bar {
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(4, 8, 18, 0.8);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  overflow: hidden;
+}
+
+.streak-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--neon-lime), var(--neon-cyan));
+  box-shadow: 0 0 14px rgba(184, 255, 60, 0.4);
+  transition: width 0.45s ease;
+}
+
+.streak-panel.is-hot .streak-bar-fill {
+  background: linear-gradient(90deg, var(--neon-magenta), var(--neon-lime), var(--neon-cyan));
+  background-size: 200% 100%;
+  animation: bar-shimmer 3s linear infinite;
+}
+
+.streak-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
 
 @keyframes fade-up {
   from {

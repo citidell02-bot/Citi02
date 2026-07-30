@@ -26,6 +26,32 @@
   </header>
 
   <main class="layout">
+    <section class="panel streak-panel" aria-labelledby="streak-heading">
+      <div class="panel-head">
+        <h2 id="streak-heading">Study Streak</h2>
+        <span class="panel-meta" id="streak-label">No streak yet</span>
+      </div>
+      <div class="streak-days" id="streak-days" aria-hidden="true"></div>
+      <div class="streak-bar-wrap">
+        <div class="streak-bar-meta">
+          <span id="streak-current">0 day streak</span>
+          <span id="streak-goal">Goal: 7 days</span>
+        </div>
+        <div
+          class="streak-bar"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="7"
+          aria-valuenow="0"
+          id="streak-bar"
+          aria-label="Study streak progress"
+        >
+          <div class="streak-bar-fill" id="streak-bar-fill"></div>
+        </div>
+      </div>
+      <p class="streak-hint" id="streak-hint">Complete a quest or focus session today to start tracking.</p>
+    </section>
+
     <section class="panel quest-panel" aria-labelledby="quest-heading">
       <div class="panel-head">
         <h2 id="quest-heading">Quest Log</h2>

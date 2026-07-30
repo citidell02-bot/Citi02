@@ -6,6 +6,7 @@
   const XP_PER_LEVEL = 100;
   const MAX_LEVEL = 100;
   const TOKENS_PER_LEVEL = 10;
+  const STREAK_GOAL = 7;
   const RANK_TIERS = [
     { max: 10, name: "Beginner" },
     { max: 20, name: "Amateur" },
@@ -106,6 +107,14 @@
     gameTitle: document.getElementById("game-title"),
     gameStatus: document.getElementById("game-status"),
     gameStage: document.getElementById("game-stage"),
+    streakLabel: document.getElementById("streak-label"),
+    streakDays: document.getElementById("streak-days"),
+    streakCurrent: document.getElementById("streak-current"),
+    streakGoal: document.getElementById("streak-goal"),
+    streakBar: document.getElementById("streak-bar"),
+    streakBarFill: document.getElementById("streak-bar-fill"),
+    streakHint: document.getElementById("streak-hint"),
+    streakPanel: document.querySelector(".streak-panel"),
     toast: document.getElementById("toast"),
   };
 
@@ -119,6 +128,7 @@
     ownedThemes: ["neon"],
     ownedGames: [],
     activeTheme: "neon",
+    studyDates: [],
   });
 
   let state = loadState();
@@ -153,6 +163,9 @@
         ownedThemes,
         ownedGames,
         activeTheme,
+        studyDates: Array.isArray(parsed.studyDates)
+          ? [...new Set(parsed.studyDates.filter((d) => typeof d === "string"))]
+          : [],
       };
     } catch {
       return defaultState();
@@ -541,6 +554,7 @@
       state.questsCleared += 1;
       saveState();
       renderQuests();
+      recordStudyDay();
       addXp(xp, `${DIFFICULTY[normalizeDifficulty(quest.difficulty)].label} quest complete`);
     } else {
       quest.done = false;
@@ -628,6 +642,7 @@
     if (timer.mode === "focus") {
       state.sessionsDone += 1;
       saveState();
+      recordStudyDay();
       addXp(XP_PER_FOCUS, "Focus session complete");
     } else {
       showToast("Break complete — back to quests");
@@ -654,6 +669,104 @@
 
   function renderTokens() {
     els.tokenCount.textContent = String(state.tokens);
+  }
+
+  function dateKey(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function shiftDateKey(key, deltaDays) {
+    const [y, m, d] = key.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + deltaDays);
+    return dateKey(date);
+  }
+
+  function getStudyStreak() {
+    const studied = new Set(state.studyDates);
+    let cursor = dateKey();
+    if (!studied.has(cursor)) {
+      cursor = shiftDateKey(cursor, -1);
+      if (!studied.has(cursor)) return 0;
+    }
+
+    let streak = 0;
+    while (studied.has(cursor)) {
+      streak += 1;
+      cursor = shiftDateKey(cursor, -1);
+    }
+    return streak;
+  }
+
+  function recordStudyDay() {
+    const today = dateKey();
+    const already = state.studyDates.includes(today);
+    if (!already) {
+      state.studyDates.push(today);
+      saveState();
+    }
+    const streak = getStudyStreak();
+    renderStreak();
+    return { isNewDay: !already, streak };
+  }
+
+  function renderStreak() {
+    const streak = getStudyStreak();
+    const studied = new Set(state.studyDates);
+    const today = dateKey();
+    const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+    els.streakDays.innerHTML = "";
+    for (let offset = -6; offset <= 0; offset += 1) {
+      const key = shiftDateKey(today, offset);
+      const [y, m, d] = key.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      const cell = document.createElement("div");
+      cell.className = "streak-day";
+      if (studied.has(key)) cell.classList.add("is-done");
+      if (key === today) cell.classList.add("is-today");
+
+      const label = document.createElement("span");
+      label.className = "streak-day-label";
+      label.textContent = weekday[date.getDay()];
+
+      const dot = document.createElement("span");
+      dot.className = "streak-day-dot";
+
+      cell.append(label, dot);
+      els.streakDays.appendChild(cell);
+    }
+
+    const progress = Math.min(STREAK_GOAL, streak);
+    const percent = Math.round((progress / STREAK_GOAL) * 100);
+
+    if (streak >= 2) {
+      els.streakLabel.textContent = `${streak}-day streak`;
+      els.streakCurrent.textContent = `${streak} day streak`;
+      els.streakHint.textContent =
+        streak >= STREAK_GOAL
+          ? "Amazing run — keep studying daily to hold your streak."
+          : `Keep it going — ${STREAK_GOAL - streak} more day${STREAK_GOAL - streak === 1 ? "" : "s"} to hit the weekly goal.`;
+      els.streakPanel.classList.add("is-hot");
+    } else if (streak === 1) {
+      els.streakLabel.textContent = "Studied today";
+      els.streakCurrent.textContent = "1 day started";
+      els.streakHint.textContent = "Come back tomorrow to build a multi-day streak.";
+      els.streakPanel.classList.remove("is-hot");
+    } else {
+      els.streakLabel.textContent = "No streak yet";
+      els.streakCurrent.textContent = "0 day streak";
+      els.streakHint.textContent = "Complete a quest or focus session today to start tracking.";
+      els.streakPanel.classList.remove("is-hot");
+    }
+
+    els.streakGoal.textContent = `Goal: ${STREAK_GOAL} days`;
+    els.streakBarFill.style.width = `${percent}%`;
+    els.streakBar.setAttribute("aria-valuenow", String(progress));
+    els.streakBar.setAttribute("aria-valuetext", `${streak} day streak`);
   }
 
   function applyTheme(themeId) {
@@ -969,7 +1082,14 @@
 
   els.questForm.addEventListener("submit", (e) => {
     e.preventDefault();
+    playSaveSound();
     addQuest(els.questInput.value);
+  });
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn || btn.disabled) return;
+    playSaveSound();
   });
 
   els.timerToggle.addEventListener("click", () => {
@@ -1004,5 +1124,6 @@
   renderXp();
   renderTokens();
   renderShop();
+  renderStreak();
   renderTimer();
 })();
