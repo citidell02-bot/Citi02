@@ -31,7 +31,7 @@
       id: "sports",
       name: "Sports Arena",
       cost: 20,
-      desc: "Stadium field, floating balls, and game-day colors.",
+      desc: "Sky-blue stadium day, green pitch, and detailed sports balls.",
       swatch: "linear-gradient(90deg, #2ecc71, #e74c3c)",
     },
     {
