@@ -347,6 +347,87 @@
     });
   }
 
+  function playToneNotes(notes, wave = "triangle", volume = 0.1) {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const startAt = ctx.currentTime + 0.01;
+    notes.forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = wave;
+      osc.frequency.value = freq;
+
+      const t0 = startAt + start;
+      const t1 = t0 + dur;
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(volume, t0 + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t1 + 0.03);
+    });
+  }
+
+  // Focus/study cue — firm ascending chime
+  function playStudySound(kind = "start") {
+    if (kind === "complete") {
+      playToneNotes(
+        [
+          { freq: 392.0, start: 0, dur: 0.12 },
+          { freq: 523.25, start: 0.12, dur: 0.12 },
+          { freq: 659.25, start: 0.24, dur: 0.14 },
+          { freq: 783.99, start: 0.38, dur: 0.22 },
+        ],
+        "triangle",
+        0.12
+      );
+      return;
+    }
+
+    playToneNotes(
+      [
+        { freq: 440.0, start: 0, dur: 0.14 },
+        { freq: 554.37, start: 0.14, dur: 0.18 },
+      ],
+      "triangle",
+      0.11
+    );
+  }
+
+  // Break cue — softer descending / gentle wake chime
+  function playBreakSound(kind = "start") {
+    if (kind === "complete") {
+      playToneNotes(
+        [
+          { freq: 523.25, start: 0, dur: 0.12 },
+          { freq: 659.25, start: 0.14, dur: 0.12 },
+          { freq: 783.99, start: 0.28, dur: 0.2 },
+        ],
+        "sine",
+        0.1
+      );
+      return;
+    }
+
+    playToneNotes(
+      [
+        { freq: 659.25, start: 0, dur: 0.14 },
+        { freq: 523.25, start: 0.14, dur: 0.18 },
+      ],
+      "sine",
+      0.09
+    );
+  }
+
+  function playTimerModeSound(kind = "start") {
+    if (timer.mode === "focus") playStudySound(kind);
+    else playBreakSound(kind);
+  }
+
   function showToast(message) {
     els.toast.hidden = false;
     els.toast.textContent = message;
@@ -486,6 +567,10 @@
       sessionGoal,
       "sessions"
     );
+
+    if (els.statsMeta) {
+      els.statsMeta.textContent = `${state.focusMinutes} min focused`;
+    }
   }
 
   function renderXp() {
