@@ -706,6 +706,58 @@ body {
   text-shadow: 0 0 12px rgba(184, 255, 60, 0.35);
 }
 
+.stat-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.stat-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.stat-bar-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.stat-bar {
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(4, 8, 18, 0.8);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: inherit;
+  transition: width 0.45s ease;
+}
+
+.stat-bar-fill.focus-fill {
+  background: linear-gradient(90deg, var(--neon-cyan), #6d8cff);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+}
+
+.stat-bar-fill.quests-fill {
+  background: linear-gradient(90deg, var(--neon-lime), var(--neon-cyan));
+  box-shadow: 0 0 12px rgba(184, 255, 60, 0.35);
+}
+
+.stat-bar-fill.sessions-fill {
+  background: linear-gradient(90deg, var(--neon-magenta), var(--neon-cyan));
+  box-shadow: 0 0 12px rgba(255, 43, 214, 0.35);
+}
+
 .xp-bar-meta {
   display: flex;
   justify-content: space-between;

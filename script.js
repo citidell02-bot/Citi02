@@ -93,6 +93,15 @@
     totalXp: document.getElementById("total-xp"),
     questsCleared: document.getElementById("quests-cleared"),
     sessionsDone: document.getElementById("sessions-done"),
+    focusTimeMeta: document.getElementById("focus-time-meta"),
+    focusTimeBar: document.getElementById("focus-time-bar"),
+    focusTimeFill: document.getElementById("focus-time-fill"),
+    questsMeta: document.getElementById("quests-meta"),
+    questsBar: document.getElementById("quests-bar"),
+    questsFill: document.getElementById("quests-fill"),
+    sessionsMeta: document.getElementById("sessions-meta"),
+    sessionsBar: document.getElementById("sessions-bar"),
+    sessionsFill: document.getElementById("sessions-fill"),
     xpCurrent: document.getElementById("xp-current"),
     xpNeeded: document.getElementById("xp-needed"),
     xpBar: document.getElementById("xp-bar"),
@@ -123,6 +132,7 @@
     totalXp: 0,
     questsCleared: 0,
     sessionsDone: 0,
+    focusMinutes: 0,
     maxLevelEnabled: false,
     tokens: 0,
     ownedThemes: ["neon"],
@@ -160,6 +170,7 @@
         ...parsed,
         quests: Array.isArray(parsed.quests) ? parsed.quests : [],
         tokens: Number.isFinite(parsed.tokens) ? parsed.tokens : 0,
+        focusMinutes: Number.isFinite(parsed.focusMinutes) ? parsed.focusMinutes : 0,
         ownedThemes,
         ownedGames,
         activeTheme,
@@ -430,6 +441,52 @@
     return DIFFICULTY[normalizeDifficulty(quest.difficulty)].xp;
   }
 
+  function nextStatGoal(value, base) {
+    if (value < base) return base;
+    return Math.ceil((value + 1) / base) * base;
+  }
+
+  function updateStatBar(fillEl, barEl, metaEl, value, goal, unitLabel) {
+    const safeGoal = Math.max(1, goal);
+    const percent = Math.min(100, Math.round((value / safeGoal) * 100));
+    fillEl.style.width = `${percent}%`;
+    barEl.setAttribute("aria-valuemax", String(safeGoal));
+    barEl.setAttribute("aria-valuenow", String(Math.min(value, safeGoal)));
+    barEl.setAttribute("aria-valuetext", `${value} of ${safeGoal} ${unitLabel}`);
+    metaEl.textContent = `${value} / ${safeGoal} ${unitLabel}`;
+  }
+
+  function renderStatBars() {
+    const focusGoal = nextStatGoal(state.focusMinutes, 60);
+    const questGoal = nextStatGoal(state.questsCleared, 10);
+    const sessionGoal = nextStatGoal(state.sessionsDone, 8);
+
+    updateStatBar(
+      els.focusTimeFill,
+      els.focusTimeBar,
+      els.focusTimeMeta,
+      state.focusMinutes,
+      focusGoal,
+      "min"
+    );
+    updateStatBar(
+      els.questsFill,
+      els.questsBar,
+      els.questsMeta,
+      state.questsCleared,
+      questGoal,
+      "quests"
+    );
+    updateStatBar(
+      els.sessionsFill,
+      els.sessionsBar,
+      els.sessionsMeta,
+      state.sessionsDone,
+      sessionGoal,
+      "sessions"
+    );
+  }
+
   function renderXp() {
     const info = getLevelInfo(state.totalXp);
     if (info.isMax) {
@@ -454,6 +511,7 @@
       "aria-valuetext",
       info.isMax ? "Max level reached" : `${info.current} of ${info.needed} XP`
     );
+    renderStatBars();
     renderMaxLevelToggle();
   }
 
@@ -554,8 +612,11 @@
       state.questsCleared += 1;
       saveState();
       renderQuests();
-      recordStudyDay();
+      const study = recordStudyDay();
       addXp(xp, `${DIFFICULTY[normalizeDifficulty(quest.difficulty)].label} quest complete`);
+      if (study.isNewDay && study.streak >= 2) {
+        setTimeout(() => showToast(`${study.streak}-day study streak!`), 2400);
+      }
     } else {
       quest.done = false;
       state.questsCleared = Math.max(0, state.questsCleared - 1);
@@ -641,9 +702,13 @@
 
     if (timer.mode === "focus") {
       state.sessionsDone += 1;
+      state.focusMinutes += timer.minutes;
       saveState();
-      recordStudyDay();
+      const study = recordStudyDay();
       addXp(XP_PER_FOCUS, "Focus session complete");
+      if (study.isNewDay && study.streak >= 2) {
+        setTimeout(() => showToast(`${study.streak}-day study streak!`), 2400);
+      }
     } else {
       showToast("Break complete — back to quests");
     }
