@@ -1150,16 +1150,16 @@ body {
 }
 
 /* Theme packs */
-body[data-theme="ember"] {
-  --bg-deep: #140806;
-  --bg-panel: rgba(32, 14, 10, 0.86);
-  --bg-panel-edge: rgba(255, 120, 40, 0.28);
-  --text: #ffe8d8;
-  --text-muted: #c49a82;
-  --neon-cyan: #ff7a28;
-  --neon-magenta: #ff3b3b;
-  --neon-lime: #ffd166;
-  --shadow-neon: 0 0 24px rgba(255, 122, 40, 0.28);
+body[data-theme="sports"] {
+  --bg-deep: #0a120e;
+  --bg-panel: rgba(12, 28, 18, 0.88);
+  --bg-panel-edge: rgba(46, 204, 113, 0.3);
+  --text: #f2fff6;
+  --text-muted: #9bb8a4;
+  --neon-cyan: #2ecc71;
+  --neon-magenta: #e74c3c;
+  --neon-lime: #f1c40f;
+  --shadow-neon: 0 0 24px rgba(46, 204, 113, 0.3);
 }
 
 body[data-theme="forest"] {

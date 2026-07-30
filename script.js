@@ -28,11 +28,11 @@
       swatch: "linear-gradient(90deg, #00e5ff, #ff2bd6)",
     },
     {
-      id: "ember",
-      name: "Ember Forge",
+      id: "sports",
+      name: "Sports Arena",
       cost: 20,
-      desc: "Warm orange study forge vibes.",
-      swatch: "linear-gradient(90deg, #ff7a28, #ff3b3b)",
+      desc: "Turf green and jersey-red game day energy.",
+      swatch: "linear-gradient(90deg, #2ecc71, #e74c3c)",
     },
     {
       id: "forest",
