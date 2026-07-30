@@ -84,6 +84,9 @@
     questEmpty: document.getElementById("quest-empty"),
     questCount: document.getElementById("quest-count"),
     timerTime: document.getElementById("timer-time"),
+    timerMinutes: document.getElementById("timer-minutes"),
+    timerSeconds: document.getElementById("timer-seconds"),
+    timerDisplay: document.querySelector(".timer-display"),
     timerMode: document.getElementById("timer-mode"),
     timerToggle: document.getElementById("timer-toggle"),
     timerReset: document.getElementById("timer-reset"),
@@ -146,6 +149,7 @@
   let timer = {
     mode: "focus",
     minutes: 25,
+    durationSeconds: 25 * 60,
     remaining: 25 * 60,
     running: false,
     intervalId: null,
@@ -656,11 +660,49 @@
   }
 
   function renderTimer() {
-    els.timerTime.textContent = formatTime(timer.remaining);
+    const mins = Math.floor(timer.remaining / 60);
+    const secs = timer.remaining % 60;
+    if (document.activeElement !== els.timerMinutes) {
+      els.timerMinutes.value = String(mins);
+    }
+    if (document.activeElement !== els.timerSeconds) {
+      els.timerSeconds.value = String(secs).padStart(2, "0");
+    }
+    els.timerDisplay.classList.toggle("is-running", timer.running);
     els.timerToggle.textContent = timer.running ? "Pause" : "Start";
     document.title = timer.running
       ? `${formatTime(timer.remaining)} · Study Quest`
       : "Study Quest";
+  }
+
+  function clampInt(value, min, max, fallback) {
+    const n = Number.parseInt(value, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function applyManualTime({ commitDuration = true } = {}) {
+    if (timer.running) return;
+
+    const minutes = clampInt(els.timerMinutes.value, 0, 180, 0);
+    let seconds = clampInt(els.timerSeconds.value, 0, 59, 0);
+    let total = minutes * 60 + seconds;
+
+    if (total <= 0) {
+      total = 60;
+      els.timerMinutes.value = "1";
+      els.timerSeconds.value = "00";
+    } else {
+      els.timerMinutes.value = String(Math.floor(total / 60));
+      els.timerSeconds.value = String(total % 60).padStart(2, "0");
+    }
+
+    timer.remaining = total;
+    if (commitDuration) {
+      timer.durationSeconds = total;
+      timer.minutes = Math.max(1, Math.round(total / 60));
+    }
+    renderTimer();
   }
 
   function selectedDifficulty() {
@@ -723,6 +765,7 @@
     stopTimer(false);
     timer.mode = mode;
     timer.minutes = minutes;
+    timer.durationSeconds = minutes * 60;
     timer.remaining = minutes * 60;
 
     els.modeButtons.forEach((btn) => {
@@ -733,8 +776,8 @@
     els.timerMode.textContent = labels[mode] || "Focus";
     els.timerHint.textContent =
       mode === "focus"
-        ? "Complete a focus session to earn +25 XP."
-        : "Break time — unlock & play games in the Break Shop.";
+        ? "Complete a focus session to earn +25 XP. Study chime plays on start & finish."
+        : "Break time — soft break chimes play on start & finish. Try a Break Shop game.";
 
     renderTimer();
   }
@@ -750,11 +793,13 @@
 
   function startTimer() {
     if (timer.running) return;
+    applyManualTime({ commitDuration: true });
     if (timer.remaining <= 0) {
-      timer.remaining = timer.minutes * 60;
+      timer.remaining = timer.durationSeconds || timer.minutes * 60;
     }
     timer.running = true;
     timer.intervalId = setInterval(tick, 1000);
+    playTimerModeSound("start");
     renderTimer();
   }
 
@@ -777,18 +822,23 @@
 
   function resetTimer() {
     stopTimer(false);
-    timer.remaining = timer.minutes * 60;
+    timer.remaining = timer.durationSeconds || timer.minutes * 60;
     renderTimer();
   }
 
   function completeSession() {
+    const completedMinutes = Math.max(
+      1,
+      Math.round((timer.durationSeconds || timer.minutes * 60) / 60)
+    );
     stopTimer(false);
     timer.remaining = 0;
     renderTimer();
+    playTimerModeSound("complete");
 
     if (timer.mode === "focus") {
       state.sessionsDone += 1;
-      state.focusMinutes += timer.minutes;
+      state.focusMinutes += completedMinutes;
       saveState();
       const study = recordStudyDay();
       addXp(XP_PER_FOCUS, "Focus session complete");
@@ -808,7 +858,7 @@
       });
     }
 
-    timer.remaining = timer.minutes * 60;
+    timer.remaining = timer.durationSeconds || timer.minutes * 60;
     renderTimer();
   }
 

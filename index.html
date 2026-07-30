@@ -178,8 +178,31 @@
       </div>
 
       <div class="timer-display" role="timer" aria-live="polite" aria-atomic="true">
-        <span id="timer-time">25:00</span>
+        <label class="sr-only" for="timer-minutes">Minutes</label>
+        <input
+          type="number"
+          id="timer-minutes"
+          class="timer-input"
+          min="0"
+          max="180"
+          value="25"
+          inputmode="numeric"
+          aria-label="Minutes"
+        />
+        <span class="timer-colon" aria-hidden="true">:</span>
+        <label class="sr-only" for="timer-seconds">Seconds</label>
+        <input
+          type="number"
+          id="timer-seconds"
+          class="timer-input"
+          min="0"
+          max="59"
+          value="0"
+          inputmode="numeric"
+          aria-label="Seconds"
+        />
       </div>
+      <p class="timer-edit-hint">Click the clock digits to set a custom time.</p>
 
       <div class="timer-modes" role="group" aria-label="Timer mode">
         <button type="button" class="mode-btn is-active" data-mode="focus" data-minutes="25">Focus</button>

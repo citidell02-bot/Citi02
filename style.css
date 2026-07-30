@@ -608,11 +608,55 @@ body {
 }
 
 .timer-display {
-  text-align: center;
-  margin: 0.5rem 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  margin: 0.5rem 0 0.45rem;
 }
 
-.timer-display span {
+.timer-input {
+  width: 2.4ch;
+  min-width: 2.4ch;
+  max-width: 3.2ch;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 10vw, 4.25rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  text-align: center;
+  text-shadow:
+    0 0 20px rgba(0, 229, 255, 0.45),
+    0 0 40px rgba(255, 43, 214, 0.2);
+  animation: timer-glow 3s ease-in-out infinite alternate;
+  outline: none;
+  -moz-appearance: textfield;
+  appearance: textfield;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+.timer-input::-webkit-outer-spin-button,
+.timer-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.timer-input:hover {
+  border-color: rgba(0, 229, 255, 0.25);
+}
+
+.timer-input:focus {
+  border-color: var(--neon-cyan);
+  background: rgba(4, 8, 18, 0.45);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.15), var(--shadow-neon);
+  animation: none;
+}
+
+.timer-colon {
   font-family: var(--font-display);
   font-size: clamp(3rem, 10vw, 4.25rem);
   font-weight: 700;
@@ -622,6 +666,19 @@ body {
     0 0 20px rgba(0, 229, 255, 0.45),
     0 0 40px rgba(255, 43, 214, 0.2);
   animation: timer-glow 3s ease-in-out infinite alternate;
+  line-height: 1;
+}
+
+.timer-edit-hint {
+  margin: 0 0 1rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.timer-display.is-running .timer-input {
+  pointer-events: none;
+  opacity: 0.92;
 }
 
 @keyframes timer-glow {
