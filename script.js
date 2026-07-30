@@ -116,6 +116,7 @@
     gameTitle: document.getElementById("game-title"),
     gameStatus: document.getElementById("game-status"),
     gameStage: document.getElementById("game-stage"),
+    statsMeta: document.getElementById("stats-meta"),
     streakLabel: document.getElementById("streak-label"),
     streakDays: document.getElementById("streak-days"),
     streakCurrent: document.getElementById("streak-current"),

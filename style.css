@@ -142,12 +142,13 @@ body {
   .layout {
     grid-template-columns: 1.15fr 0.85fr;
     grid-template-areas:
-      "streak streak"
+      "stats streak"
       "quests timer"
       "xp xp"
       "shop shop";
   }
 
+  .stats-panel { grid-area: stats; }
   .streak-panel { grid-area: streak; }
   .quest-panel { grid-area: quests; }
   .timer-panel { grid-area: timer; }
@@ -168,7 +169,16 @@ body {
 .timer-panel { animation-delay: 0.08s; }
 .xp-panel { animation-delay: 0.16s; }
 .shop-panel { animation-delay: 0.22s; }
-.streak-panel { animation-delay: 0.04s; }
+.stats-panel { animation-delay: 0.02s; }
+.streak-panel { animation-delay: 0.06s; }
+
+.stats-panel .stat-bars {
+  margin-bottom: 0;
+}
+
+.xp-panel .xp-bar-wrap {
+  margin-top: 0.15rem;
+}
 
 .streak-days {
   display: grid;

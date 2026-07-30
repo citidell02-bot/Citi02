@@ -26,6 +26,82 @@
   </header>
 
   <main class="layout">
+    <section class="panel stats-panel" aria-labelledby="stats-heading">
+      <div class="panel-head">
+        <h2 id="stats-heading">Stats</h2>
+        <span class="panel-meta" id="stats-meta">Study progress</span>
+      </div>
+
+      <div class="xp-stats">
+        <div class="stat">
+          <span class="stat-label">Total XP</span>
+          <span class="stat-value" id="total-xp">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Quests Cleared</span>
+          <span class="stat-value" id="quests-cleared">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Sessions</span>
+          <span class="stat-value" id="sessions-done">0</span>
+        </div>
+      </div>
+
+      <div class="stat-bars" aria-label="Study stats progress">
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Focus Time</span>
+            <span id="focus-time-meta">0 / 60 min</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="60"
+            aria-valuenow="0"
+            id="focus-time-bar"
+            aria-label="Focus time progress"
+          >
+            <div class="stat-bar-fill focus-fill" id="focus-time-fill"></div>
+          </div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Quests Done</span>
+            <span id="quests-meta">0 / 10</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="10"
+            aria-valuenow="0"
+            id="quests-bar"
+            aria-label="Quests done progress"
+          >
+            <div class="stat-bar-fill quests-fill" id="quests-fill"></div>
+          </div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Focus Sessions</span>
+            <span id="sessions-meta">0 / 8</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="8"
+            aria-valuenow="0"
+            id="sessions-bar"
+            aria-label="Focus sessions progress"
+          >
+            <div class="stat-bar-fill sessions-fill" id="sessions-fill"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="panel streak-panel" aria-labelledby="streak-heading">
       <div class="panel-head">
         <h2 id="streak-heading">Study Streak</h2>
@@ -123,75 +199,6 @@
       <div class="panel-head">
         <h2 id="xp-heading">Level &amp; XP</h2>
         <span class="panel-meta" id="level-label">Beginner · Level 1</span>
-      </div>
-
-      <div class="xp-stats">
-        <div class="stat">
-          <span class="stat-label">Total XP</span>
-          <span class="stat-value" id="total-xp">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Quests Cleared</span>
-          <span class="stat-value" id="quests-cleared">0</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Sessions</span>
-          <span class="stat-value" id="sessions-done">0</span>
-        </div>
-      </div>
-
-      <div class="stat-bars" aria-label="Study stats progress">
-        <div class="stat-bar-row">
-          <div class="stat-bar-meta">
-            <span>Focus Time</span>
-            <span id="focus-time-meta">0 / 60 min</span>
-          </div>
-          <div
-            class="stat-bar"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="60"
-            aria-valuenow="0"
-            id="focus-time-bar"
-            aria-label="Focus time progress"
-          >
-            <div class="stat-bar-fill focus-fill" id="focus-time-fill"></div>
-          </div>
-        </div>
-        <div class="stat-bar-row">
-          <div class="stat-bar-meta">
-            <span>Quests Done</span>
-            <span id="quests-meta">0 / 10</span>
-          </div>
-          <div
-            class="stat-bar"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="10"
-            aria-valuenow="0"
-            id="quests-bar"
-            aria-label="Quests done progress"
-          >
-            <div class="stat-bar-fill quests-fill" id="quests-fill"></div>
-          </div>
-        </div>
-        <div class="stat-bar-row">
-          <div class="stat-bar-meta">
-            <span>Focus Sessions</span>
-            <span id="sessions-meta">0 / 8</span>
-          </div>
-          <div
-            class="stat-bar"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="8"
-            aria-valuenow="0"
-            id="sessions-bar"
-            aria-label="Focus sessions progress"
-          >
-            <div class="stat-bar-fill sessions-fill" id="sessions-fill"></div>
-          </div>
-        </div>
       </div>
 
       <div class="xp-bar-wrap">
