@@ -148,11 +148,12 @@
   let state = loadState();
   let timer = {
     mode: "focus",
-    minutes: 25,
-    durationSeconds: 25 * 60,
-    remaining: 25 * 60,
+    minutes: 0,
+    durationSeconds: 0,
+    remaining: 0,
     running: false,
     intervalId: null,
+    suppressInputCommit: false,
   };
   let toastTimer = null;
   let gameCleanup = null;
@@ -801,9 +802,9 @@
 
   function startTimer() {
     if (timer.running) return;
-    applyManualTime({ commitDuration: true });
     if (timer.remaining <= 0) {
       timer.remaining = timer.durationSeconds || timer.minutes * 60;
+      forceTimerInputs();
     }
     timer.running = true;
     timer.intervalId = setInterval(tick, 1000);
@@ -829,9 +830,18 @@
   }
 
   function resetTimer() {
+    // Ignore blur/change commits caused by clicking Reset while editing the clock
+    timer.suppressInputCommit = true;
     stopTimer(false);
     timer.remaining = timer.durationSeconds || timer.minutes * 60;
-    renderTimer();
+    forceTimerInputs();
+    els.timerDisplay.classList.remove("is-running");
+    els.timerToggle.textContent = "Start";
+    document.title = "Study Quest";
+    showToast("Timer reset");
+    window.setTimeout(() => {
+      timer.suppressInputCommit = false;
+    }, 0);
   }
 
   function completeSession() {
