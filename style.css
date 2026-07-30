@@ -639,6 +639,30 @@ body {
   animation: bar-shimmer 3s linear infinite;
 }
 
+.xp-options {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.max-level-btn {
+  font-size: 0.65rem;
+  padding: 0.55rem 0.9rem;
+}
+
+.max-level-btn.is-on {
+  color: var(--bg-deep);
+  background: var(--neon-cyan);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.35);
+}
+
+.max-level-btn.is-on:hover {
+  color: var(--bg-deep);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 22px rgba(0, 229, 255, 0.5);
+}
+
 @keyframes bar-shimmer {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }

@@ -38,6 +38,7 @@
     xpNeeded: document.getElementById("xp-needed"),
     xpBar: document.getElementById("xp-bar"),
     xpBarFill: document.getElementById("xp-bar-fill"),
+    maxLevelToggle: document.getElementById("max-level-toggle"),
     toast: document.getElementById("toast"),
   };
 
@@ -46,6 +47,7 @@
     totalXp: 0,
     questsCleared: 0,
     sessionsDone: 0,
+    maxLevelEnabled: false,
   });
 
   let state = loadState();
@@ -77,8 +79,8 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  function xpForLevel(level) {
-    return Math.round(XP_BASE * Math.pow(1.35, level - 1));
+  function xpForLevel(_level) {
+    return XP_PER_LEVEL;
   }
 
   function rankForLevel(level) {
@@ -92,14 +94,15 @@
     let level = 1;
     let remaining = totalXp;
     let need = xpForLevel(level);
+    const capEnabled = Boolean(state.maxLevelEnabled);
 
-    while (level < MAX_LEVEL && remaining >= need) {
+    while ((!capEnabled || level < MAX_LEVEL) && remaining >= need) {
       remaining -= need;
       level += 1;
       need = xpForLevel(level);
     }
 
-    if (level >= MAX_LEVEL) {
+    if (capEnabled && level >= MAX_LEVEL) {
       return {
         level: MAX_LEVEL,
         current: remaining,
@@ -314,6 +317,25 @@
       "aria-valuetext",
       info.isMax ? "Max level reached" : `${info.current} of ${info.needed} XP`
     );
+    renderMaxLevelToggle();
+  }
+
+  function renderMaxLevelToggle() {
+    const on = Boolean(state.maxLevelEnabled);
+    els.maxLevelToggle.textContent = on ? "Max Level 100: On" : "Max Level 100: Off";
+    els.maxLevelToggle.setAttribute("aria-pressed", on ? "true" : "false");
+    els.maxLevelToggle.classList.toggle("is-on", on);
+  }
+
+  function toggleMaxLevel() {
+    state.maxLevelEnabled = !state.maxLevelEnabled;
+    saveState();
+    renderXp();
+    showToast(
+      state.maxLevelEnabled
+        ? "Max level 100 enabled"
+        : "Max level disabled — unlimited leveling"
+    );
   }
 
   function renderTimer() {
@@ -481,6 +503,8 @@
   });
 
   els.timerReset.addEventListener("click", resetTimer);
+
+  els.maxLevelToggle.addEventListener("click", toggleMaxLevel);
 
   els.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
