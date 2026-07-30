@@ -675,6 +675,13 @@
       : "Study Quest";
   }
 
+  function forceTimerInputs() {
+    const mins = Math.floor(timer.remaining / 60);
+    const secs = timer.remaining % 60;
+    els.timerMinutes.value = String(mins);
+    els.timerSeconds.value = String(secs).padStart(2, "0");
+  }
+
   function clampInt(value, min, max, fallback) {
     const n = Number.parseInt(value, 10);
     if (!Number.isFinite(n)) return fallback;
@@ -682,27 +689,28 @@
   }
 
   function applyManualTime({ commitDuration = true } = {}) {
-    if (timer.running) return;
+    if (timer.running || timer.suppressInputCommit) return;
 
     const minutes = clampInt(els.timerMinutes.value, 0, 180, 0);
     let seconds = clampInt(els.timerSeconds.value, 0, 59, 0);
     let total = minutes * 60 + seconds;
 
     if (total <= 0) {
-      total = 60;
-      els.timerMinutes.value = "1";
-      els.timerSeconds.value = "00";
-    } else {
-      els.timerMinutes.value = String(Math.floor(total / 60));
-      els.timerSeconds.value = String(total % 60).padStart(2, "0");
+      total = Math.max(60, timer.durationSeconds || 60);
     }
 
+    const previousRemaining = timer.remaining;
     timer.remaining = total;
-    if (commitDuration) {
+
+    // Only update the configured reset duration when the user actually changed the time
+    if (commitDuration && total !== previousRemaining) {
       timer.durationSeconds = total;
       timer.minutes = Math.max(1, Math.round(total / 60));
     }
-    renderTimer();
+
+    forceTimerInputs();
+    els.timerToggle.textContent = "Start";
+    document.title = "Study Quest";
   }
 
   function selectedDifficulty() {
@@ -1299,6 +1307,25 @@
   });
 
   els.timerReset.addEventListener("click", resetTimer);
+
+  [els.timerMinutes, els.timerSeconds].forEach((input) => {
+    input.addEventListener("focus", () => {
+      if (timer.running) {
+        stopTimer();
+        showToast("Timer paused — edit the clock, then Start");
+      }
+      input.select();
+    });
+    input.addEventListener("change", () => applyManualTime({ commitDuration: true }));
+    input.addEventListener("blur", () => applyManualTime({ commitDuration: true }));
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        applyManualTime({ commitDuration: true });
+        input.blur();
+      }
+    });
+  });
 
   els.maxLevelToggle.addEventListener("click", toggleMaxLevel);
   els.goMaxLevel.addEventListener("click", goMaxLevel);
