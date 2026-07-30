@@ -809,7 +809,9 @@
         ? "Set a custom study time, then Start. Focus sessions earn +25 XP."
         : mode === "short"
           ? "Short break set to 5:00. Press Start when you're ready."
-          : "Break mode — set a custom time or keep your saved time, then Start.";
+          : mode === "long"
+            ? "Long break set to 15:00. Press Start when you're ready."
+            : "Break mode — set a custom time or keep your saved time, then Start.";
 
     renderTimer();
   }
@@ -1393,7 +1395,8 @@
 
   els.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      setMode(btn.dataset.mode);
+      const preset = Number(btn.dataset.minutes);
+      setMode(btn.dataset.mode, Number.isFinite(preset) && preset > 0 ? preset : undefined);
     });
   });
 
