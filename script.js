@@ -287,6 +287,41 @@
     });
   }
 
+  // Synthesized Pokémon-style save jingle for button presses
+  function playSaveSound() {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const notes = [
+      { freq: 523.25, start: 0, dur: 0.06 },
+      { freq: 659.25, start: 0.06, dur: 0.06 },
+      { freq: 783.99, start: 0.12, dur: 0.06 },
+      { freq: 1046.5, start: 0.18, dur: 0.08 },
+      { freq: 1318.51, start: 0.26, dur: 0.16 },
+    ];
+    const startAt = ctx.currentTime + 0.005;
+
+    notes.forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = freq;
+
+      const t0 = startAt + start;
+      const t1 = t0 + dur;
+      const peak = start === 0.26 ? 0.11 : 0.08;
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t1 + 0.02);
+    });
+  }
+
   function showToast(message) {
     els.toast.hidden = false;
     els.toast.textContent = message;
