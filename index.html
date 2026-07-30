@@ -29,16 +29,36 @@
       </div>
 
       <form class="quest-form" id="quest-form" autocomplete="off">
-        <label class="sr-only" for="quest-input">New quest</label>
-        <input
-          type="text"
-          id="quest-input"
-          name="quest"
-          placeholder="Add a new quest…"
-          maxlength="80"
-          required
-        />
-        <button type="submit" class="btn btn-primary">Add Quest</button>
+        <div class="quest-form-row">
+          <label class="sr-only" for="quest-input">New quest</label>
+          <input
+            type="text"
+            id="quest-input"
+            name="quest"
+            placeholder="Add a new quest…"
+            maxlength="80"
+            required
+          />
+          <button type="submit" class="btn btn-primary">Add Quest</button>
+        </div>
+
+        <fieldset class="difficulty-group">
+          <legend class="difficulty-legend">Difficulty</legend>
+          <div class="difficulty-options" role="radiogroup" aria-label="Quest difficulty">
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="easy" checked />
+              <span class="difficulty-chip difficulty-easy">Easy · 10 XP</span>
+            </label>
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="medium" />
+              <span class="difficulty-chip difficulty-medium">Medium · 20 XP</span>
+            </label>
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="hard" />
+              <span class="difficulty-chip difficulty-hard">Hard · 30 XP</span>
+            </label>
+          </div>
+        </fieldset>
       </form>
 
       <ul class="quest-list" id="quest-list" aria-live="polite"></ul>

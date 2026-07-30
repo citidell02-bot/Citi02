@@ -2,9 +2,13 @@
   "use strict";
 
   const STORAGE_KEY = "study-quest-state-v1";
-  const XP_PER_QUEST = 15;
   const XP_PER_FOCUS = 25;
   const XP_BASE = 100;
+  const DIFFICULTY = {
+    easy: { label: "Easy", xp: 10 },
+    medium: { label: "Medium", xp: 20 },
+    hard: { label: "Hard", xp: 30 },
+  };
 
   const els = {
     questForm: document.getElementById("quest-form"),
@@ -146,6 +150,11 @@
       text.className = "quest-text";
       text.textContent = quest.text;
 
+      const difficulty = normalizeDifficulty(quest.difficulty);
+      const badge = document.createElement("span");
+      badge.className = `quest-badge ${difficulty}`;
+      badge.textContent = `${DIFFICULTY[difficulty].label} · ${questXp(quest)} XP`;
+
       const del = document.createElement("button");
       del.type = "button";
       del.className = "quest-delete";
@@ -153,9 +162,18 @@
       del.textContent = "×";
       del.addEventListener("click", () => deleteQuest(quest.id));
 
-      li.append(check, text, del);
+      li.append(check, text, badge, del);
       els.questList.appendChild(li);
     });
+  }
+
+  function normalizeDifficulty(value) {
+    return DIFFICULTY[value] ? value : "medium";
+  }
+
+  function questXp(quest) {
+    if (typeof quest.xp === "number") return quest.xp;
+    return DIFFICULTY[normalizeDifficulty(quest.difficulty)].xp;
   }
 
   function renderXp() {
@@ -179,13 +197,22 @@
       : "Study Quest";
   }
 
+  function selectedDifficulty() {
+    const checked = els.questForm.querySelector('input[name="difficulty"]:checked');
+    return normalizeDifficulty(checked ? checked.value : "medium");
+  }
+
   function addQuest(text) {
     const trimmed = text.trim();
     if (!trimmed) return;
 
+    const difficulty = selectedDifficulty();
+
     state.quests.unshift({
       id: uid(),
       text: trimmed,
+      difficulty,
+      xp: DIFFICULTY[difficulty].xp,
       done: false,
       createdAt: Date.now(),
     });
@@ -198,17 +225,18 @@
   function toggleQuest(id) {
     const quest = state.quests.find((q) => q.id === id);
     if (!quest) return;
+    const xp = questXp(quest);
 
     if (!quest.done) {
       quest.done = true;
       state.questsCleared += 1;
       saveState();
       renderQuests();
-      addXp(XP_PER_QUEST, "Quest complete");
+      addXp(xp, `${DIFFICULTY[normalizeDifficulty(quest.difficulty)].label} quest complete`);
     } else {
       quest.done = false;
       state.questsCleared = Math.max(0, state.questsCleared - 1);
-      state.totalXp = Math.max(0, state.totalXp - XP_PER_QUEST);
+      state.totalXp = Math.max(0, state.totalXp - xp);
       saveState();
       renderQuests();
       renderXp();
