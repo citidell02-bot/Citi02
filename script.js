@@ -140,6 +140,38 @@
     });
   }
 
+  // Synthesized Pokémon-style item pickup: short bright ascending chirp
+  function playXpSound() {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const notes = [
+      { freq: 987.77, start: 0, dur: 0.07 },
+      { freq: 1318.51, start: 0.07, dur: 0.09 },
+      { freq: 1760.0, start: 0.14, dur: 0.14 },
+    ];
+    const startAt = ctx.currentTime + 0.01;
+
+    notes.forEach(({ freq, start, dur }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = freq;
+
+      const t0 = startAt + start;
+      const t1 = t0 + dur;
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.1, t0 + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t1 + 0.02);
+    });
+  }
+
   function showToast(message) {
     els.toast.hidden = false;
     els.toast.textContent = message;
@@ -164,6 +196,7 @@
       playLevelUpSound();
       showToast(`Level up! Now Level ${after.level}`);
     } else {
+      playXpSound();
       showToast(`+${amount} XP — ${reason}`);
     }
   }
