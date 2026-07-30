@@ -165,12 +165,11 @@
       const parsed = JSON.parse(raw);
       const base = defaultState();
       const ownedThemes = Array.isArray(parsed.ownedThemes)
-        ? [...new Set(["neon", ...parsed.ownedThemes])]
+        ? [...new Set(["neon", ...parsed.ownedThemes.map((id) => (id === "ember" ? "sports" : id))])]
         : base.ownedThemes;
       const ownedGames = Array.isArray(parsed.ownedGames) ? parsed.ownedGames : [];
-      const activeTheme = ownedThemes.includes(parsed.activeTheme)
-        ? parsed.activeTheme
-        : "neon";
+      let activeTheme = parsed.activeTheme === "ember" ? "sports" : parsed.activeTheme;
+      activeTheme = ownedThemes.includes(activeTheme) ? activeTheme : "neon";
       return {
         ...base,
         ...parsed,
