@@ -40,6 +40,7 @@
     xpBarFill: document.getElementById("xp-bar-fill"),
     maxLevelToggle: document.getElementById("max-level-toggle"),
     goMaxLevel: document.getElementById("go-max-level"),
+    resetLevel: document.getElementById("reset-level"),
     toast: document.getElementById("toast"),
   };
 
@@ -339,6 +340,27 @@
     );
   }
 
+  function xpToReachLevel(targetLevel) {
+    let total = 0;
+    for (let level = 1; level < targetLevel; level += 1) {
+      total += xpForLevel(level);
+    }
+    return total;
+  }
+
+  function goMaxLevel() {
+    const before = getLevelInfo(state.totalXp);
+    state.maxLevelEnabled = true;
+    state.totalXp = Math.max(state.totalXp, xpToReachLevel(MAX_LEVEL));
+    saveState();
+    renderXp();
+
+    if (before.level < MAX_LEVEL) {
+      playLevelUpSound();
+    }
+    showToast(`Max level reached! Level ${MAX_LEVEL}`);
+  }
+
   function renderTimer() {
     els.timerTime.textContent = formatTime(timer.remaining);
     els.timerToggle.textContent = timer.running ? "Pause" : "Start";
@@ -506,6 +528,7 @@
   els.timerReset.addEventListener("click", resetTimer);
 
   els.maxLevelToggle.addEventListener("click", toggleMaxLevel);
+  els.goMaxLevel.addEventListener("click", goMaxLevel);
 
   els.modeButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
