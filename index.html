@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Quest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1 class="brand-title">Study Quest</h1>
+    </div>
+    <p class="tagline">Level up your focus. Conquer your goals.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel quest-log" aria-labelledby="quest-heading">
+      <div class="panel-head">
+        <h2 id="quest-heading">Quest Log</h2>
+        <span class="panel-meta" id="quest-count">0 active</span>
+      </div>
+
+      <form class="quest-form" id="quest-form" autocomplete="off">
+        <label class="sr-only" for="quest-input">New quest</label>
+        <input
+          type="text"
+          id="quest-input"
+          name="quest"
+          placeholder="Add a new quest..."
+          maxlength="80"
+          required
+        />
+        <button type="submit" class="btn btn-primary">Add Quest</button>
+      </form>
+
+      <ul class="quest-list" id="quest-list" aria-live="polite"></ul>
+      <p class="empty-state" id="empty-quests">No quests yet. Add one to begin your journey.</p>
+    </section>
+
+    <section class="panel pomodoro" aria-labelledby="timer-heading">
+      <div class="panel-head">
+        <h2 id="timer-heading">Pomodoro Timer</h2>
+        <span class="panel-meta" id="session-label">Focus Session</span>
+      </div>
+
+      <div class="timer-modes" role="group" aria-label="Timer mode">
+        <button type="button" class="mode-btn active" data-mode="focus" data-minutes="25">Focus</button>
+        <button type="button" class="mode-btn" data-mode="short" data-minutes="5">Short Break</button>
+        <button type="button" class="mode-btn" data-mode="long" data-minutes="15">Long Break</button>
+      </div>
+
+      <div class="timer-display" aria-live="polite">
+        <svg class="timer-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="ring-track" cx="60" cy="60" r="54"></circle>
+          <circle class="ring-progress" id="ring-progress" cx="60" cy="60" r="54"></circle>
+        </svg>
+        <div class="timer-time">
+          <span id="timer-minutes">25</span><span class="colon">:</span><span id="timer-seconds">00</span>
+        </div>
+      </div>
+
+      <div class="timer-controls">
+        <button type="button" class="btn btn-primary" id="timer-toggle">Start</button>
+        <button type="button" class="btn btn-ghost" id="timer-reset">Reset</button>
+      </div>
+
+      <p class="timer-hint">Complete a focus session to earn <strong>+25 XP</strong></p>
+    </section>
+
+    <section class="panel level-board" aria-labelledby="level-heading">
+      <div class="panel-head">
+        <h2 id="level-heading">Level &amp; XP</h2>
+        <span class="panel-meta" id="xp-total">0 XP total</span>
+      </div>
+
+      <div class="level-hero">
+        <div class="level-badge" aria-hidden="true">
+          <span class="level-label">LVL</span>
+          <span class="level-number" id="level-number">1</span>
+        </div>
+        <div class="level-copy">
+          <p class="rank-title" id="rank-title">Novice Scholar</p>
+          <p class="rank-sub" id="xp-to-next">75 XP to next level</p>
+        </div>
+      </div>
+
+      <div class="xp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="xp-label">
+        <div class="xp-fill" id="xp-fill"></div>
+      </div>
+      <div class="xp-meta">
+        <span id="xp-label">0 / 100 XP</span>
+        <span id="quests-done">0 quests cleared</span>
+      </div>
+
+      <ul class="stats-row">
+        <li>
+          <span class="stat-value" id="stat-sessions">0</span>
+          <span class="stat-label">Sessions</span>
+        </li>
+        <li>
+          <span class="stat-value" id="stat-streak">0</span>
+          <span class="stat-label">Streak</span>
+        </li>
+        <li>
+          <span class="stat-value" id="stat-focus">0m</span>
+          <span class="stat-label">Focus Time</span>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
