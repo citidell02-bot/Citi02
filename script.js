@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = "study-quest-state-v1";
   const XP_PER_FOCUS = 25;
-  const XP_BASE = 100;
+  const XP_PER_LEVEL = 100;
   const MAX_LEVEL = 100;
   const RANK_TIERS = [
     { max: 10, name: "Beginner" },
@@ -77,8 +77,8 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  function xpForLevel(_level) {
-    return XP_PER_LEVEL;
+  function xpForLevel(level) {
+    return Math.round(XP_BASE * Math.pow(1.35, level - 1));
   }
 
   function rankForLevel(level) {
