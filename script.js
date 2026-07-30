@@ -96,6 +96,50 @@
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
+  let audioCtx = null;
+
+  function getAudioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    if (!audioCtx) audioCtx = new AudioContextClass();
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+  }
+
+  // Synthesized Mario-style power-up: rising major-triad square-wave arpeggio
+  function playLevelUpSound() {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const notes = [
+      523.25, 659.25, 783.99, 1046.5, 1318.51,
+      1567.98, 2093.0, 2637.02, 3135.96, 4186.01,
+    ];
+    const noteDuration = 0.075;
+    const startAt = ctx.currentTime + 0.02;
+
+    notes.forEach((freq, index) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = freq;
+
+      const t0 = startAt + index * noteDuration;
+      const t1 = t0 + noteDuration;
+
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t1);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t1 + 0.02);
+    });
+  }
+
   function showToast(message) {
     els.toast.hidden = false;
     els.toast.textContent = message;
@@ -117,6 +161,7 @@
     renderXp();
 
     if (after.level > before.level) {
+      playLevelUpSound();
       showToast(`Level up! Now Level ${after.level}`);
     } else {
       showToast(`+${amount} XP — ${reason}`);
