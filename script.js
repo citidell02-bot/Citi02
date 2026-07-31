@@ -79,7 +79,7 @@
       id: "dash",
       name: "Cube Rush",
       cost: 30,
-      desc: "Geometry Dash-style auto-runner — jump spikes, clear the track.",
+      desc: "Geometry Dash-style auto-runner — short hops over spikes and ceiling traps.",
     },
   ];
 
