@@ -52,8 +52,8 @@
       id: "goldrush",
       name: "Sky Runway",
       cost: 40,
-      desc: "Golden-hour sky, runway lights, and jets overhead.",
-      swatch: "linear-gradient(90deg, #7ec8f0, #f2be37)",
+      desc: "Speed-zone blue skies, green hills, rings, and checkered loops.",
+      swatch: "linear-gradient(90deg, #1a9fff, #3dff6a 50%, #f2be37)",
     },
   ];
   const GAMES = [
