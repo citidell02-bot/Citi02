@@ -1925,8 +1925,8 @@
       diveY: 0,
       t: 0,
       diving: false,
-      w: 34,
-      h: 52,
+      w: 58,
+      h: 88,
     };
 
     const root = document.createElement("div");
@@ -2061,6 +2061,7 @@
       keeper.diveY = 0;
       keeper.t = 0;
       keeper.diving = false;
+      keeper.diveDur = 0.4;
       aimX = GOAL.x + GOAL.w / 2;
       aimY = GOAL.y + GOAL.h * 0.45;
       power = 0.4 + Math.random() * 0.25;
