@@ -79,7 +79,7 @@
       id: "dash",
       name: "Cube Rush",
       cost: 30,
-      desc: "Faster Geometry Dash-style runner with randomized spike/block patterns.",
+      desc: "Endless Geometry Dash-style runner — speed rises the farther you go.",
     },
   ];
 
@@ -1925,16 +1925,19 @@
     const H = 320;
     const GROUND_Y = 250;
     const CUBE = 26;
-    const SPEED = 310;
+    const BASE_SPEED = 300;
+    const MAX_SPEED = 560;
+    const SPEED_PER_1000 = 55; // +55 px/s every 1000 distance
     const GRAVITY = 2680;
     const JUMP_V = -820;
-    // One full jump travels this far at current scroll speed
-    const JUMP_DIST = (SPEED * 2 * Math.abs(JUMP_V)) / GRAVITY;
-    const HOP = JUMP_DIST; // ~164px at current tunings
-    const GAP = JUMP_DIST * 1.35; // breathing room between pattern packs
-    const LEVEL_LEN = Math.round(HOP * 42);
     const SPIKE = 24;
     const BLOCK = 34;
+    const LOOKAHEAD = 1400;
+    const PRUNE_BEHIND = 400;
+
+    function hopDist(speed) {
+      return (speed * 2 * Math.abs(JUMP_V)) / GRAVITY;
+    }
 
     function mulberry32(seed) {
       let a = seed >>> 0;
@@ -1947,154 +1950,25 @@
       };
     }
 
-    function buildLevel(seed) {
-      const rng = mulberry32(seed);
-      const list = [];
-      const add = (obj) => list.push(obj);
-      const px = (n) => Math.round(n);
-
-      function spike(x) {
-        add({ type: "spike", x: px(x), w: SPIKE, h: SPIKE });
-      }
-      function ceil(x, h = 70 + Math.floor(rng() * 40)) {
-        add({ type: "ceil", x: px(x), w: SPIKE, h });
-      }
-      function block(x, h) {
-        add({ type: "block", x: px(x), w: BLOCK, h });
-      }
-      function plat(x, top, w = BLOCK) {
-        add({ type: "plat", x: px(x), w, h: 18, top });
-      }
-
-      // Spacings scale with JUMP_DIST so faster speed keeps the same timing feel,
-      // and packs sit farther apart overall.
-      const hop = HOP;
-      const near = hop * 0.92;
-      const mid = hop * 1.15;
-      const far = hop * 1.55;
-
-      const patterns = [
-        // single spike
-        (x) => {
-          spike(x);
-          return SPIKE;
-        },
-        // double spike (tight cluster — one jump clears)
-        (x) => {
-          spike(x);
-          spike(x + SPIKE + 6);
-          return SPIKE * 2 + 6;
-        },
-        // triple spike cluster
-        (x) => {
-          spike(x);
-          spike(x + SPIKE + 4);
-          spike(x + (SPIKE + 4) * 2);
-          return SPIKE * 3 + 8;
-        },
-        // two singles a full hop apart
-        (x) => {
-          spike(x);
-          spike(x + near);
-          return near + SPIKE;
-        },
-        // stair up + exit spike after a hop
-        (x) => {
-          block(x, BLOCK);
-          block(x + BLOCK, BLOCK * 2);
-          spike(x + BLOCK * 2 + mid * 0.55);
-          return BLOCK * 2 + mid * 0.55 + SPIKE;
-        },
-        // stair down
-        (x) => {
-          block(x, BLOCK * 2);
-          block(x + BLOCK, BLOCK);
-          spike(x + BLOCK * 2 + mid * 0.5);
-          return BLOCK * 2 + mid * 0.5 + SPIKE;
-        },
-        // pillar hop
-        (x) => {
-          block(x, BLOCK);
-          spike(x + BLOCK + hop * 0.45);
-          block(x + BLOCK + hop * 1.05, BLOCK);
-          return BLOCK + hop * 1.05 + BLOCK;
-        },
-        // ceiling bite, then floor spike a hop later
-        (x) => {
-          ceil(x, 78 + Math.floor(rng() * 30));
-          spike(x + mid);
-          return mid + SPIKE;
-        },
-        // sandwich with wider floor spacing
-        (x) => {
-          spike(x);
-          ceil(x + hop * 0.35, 95);
-          spike(x + mid);
-          return mid + SPIKE;
-        },
-        // floating pads spaced by hop distance
-        (x) => {
-          const top = GROUND_Y - 56 - Math.floor(rng() * 20);
-          plat(x, top, 44);
-          plat(x + mid, top - 18, 44);
-          spike(x + mid * 2);
-          return mid * 2 + SPIKE;
-        },
-        // spike wave — each spike ~one hop apart
-        (x) => {
-          for (let i = 0; i < 4; i += 1) spike(x + i * near);
-          return near * 3 + SPIKE;
-        },
-        // block / ceiling / block
-        (x) => {
-          block(x, BLOCK);
-          ceil(x + hop * 0.55, 100);
-          block(x + hop * 1.15, BLOCK);
-          return hop * 1.15 + BLOCK;
-        },
-        // two double-spike packs separated by a long gap
-        (x) => {
-          spike(x);
-          spike(x + SPIKE + 6);
-          spike(x + far);
-          spike(x + far + SPIKE + 6);
-          return far + SPIKE * 2 + 6;
-        },
-      ];
-
-      let x = hop * 2.6 + rng() * hop * 0.4;
-      let guard = 0;
-      while (x < LEVEL_LEN - hop * 2.2 && guard < 60) {
-        guard += 1;
-        const progress = x / LEVEL_LEN;
-        let idx;
-        if (progress < 0.22) idx = Math.floor(rng() * 6);
-        else if (progress < 0.6) idx = Math.floor(rng() * patterns.length);
-        else idx = 4 + Math.floor(rng() * (patterns.length - 4));
-        const width = patterns[idx](x);
-        // Packs sit ~1.2–2.0 jumps apart (farther than before, speed-relative)
-        const packGap = GAP * (1.05 + rng() * 0.55);
-        x += width + packGap;
-      }
-
-      spike(LEVEL_LEN - hop * 1.4);
-      spike(LEVEL_LEN - hop * 0.85);
-      return list;
+    function currentSpeed(dist) {
+      return Math.min(MAX_SPEED, BASE_SPEED + (dist / 1000) * SPEED_PER_1000);
     }
 
     let hazards = [];
+    let genX = 0;
+    let rng = mulberry32(1);
     let levelSeed = (Math.random() * 1e9) | 0;
     let lastFailSeed = levelSeed;
+    let speed = BASE_SPEED;
 
     let running = false;
     let finished = false;
     let dead = false;
-    let won = false;
     let rafId = 0;
     let lastTs = 0;
     let camX = 0;
     let attempts = 1;
-    let bestProgress = 0;
+    let bestDist = 0;
     let xpAwarded = false;
     let jumpQueued = false;
 
@@ -2112,9 +1986,9 @@
     const hud = document.createElement("div");
     hud.className = "dash-hud";
     const attemptEl = document.createElement("span");
-    const progressEl = document.createElement("span");
-    const bestEl = document.createElement("span");
-    hud.append(attemptEl, progressEl, bestEl);
+    const distEl = document.createElement("span");
+    const speedEl = document.createElement("span");
+    hud.append(attemptEl, distEl, speedEl);
 
     const bar = document.createElement("div");
     bar.className = "dash-progress";
@@ -2126,7 +2000,7 @@
     canvas.width = W;
     canvas.height = H;
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", "Cube Rush track");
+    canvas.setAttribute("aria-label", "Cube Rush endless track");
     const ctx2d = canvas.getContext("2d", { alpha: false });
 
     const overlay = document.createElement("div");
@@ -2141,11 +2015,11 @@
 
     const hint = document.createElement("p");
     hint.className = "dash-hint";
-    hint.textContent = "Space / ↑ / click / tap · randomized Geometry Dash-style layouts each new run";
+    hint.textContent = "Endless run · speed rises with distance · Space / ↑ / click to jump";
 
     root.append(hud, bar, canvas, overlay, startBtn, hint);
     els.gameStage.appendChild(root);
-    els.gameStatus.textContent = "Cube Rush — faster pace, random spike/block patterns each run.";
+    els.gameStatus.textContent = "Cube Rush — endless mode. Survive as far as you can while speed ramps up.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-dash");
 
     let musicToken = 0;
@@ -2178,7 +2052,8 @@
         osc.stop(t + dur + 0.02);
       }
 
-      for (let i = 0; i < 64; i += 1) {
+      // Long bed for endless runs
+      for (let i = 0; i < 240; i += 1) {
         const t = t0 + i * beat;
         if (i % 4 === 0) beep("sine", 160, t, 0.11, 0.5, 45);
         if (i % 4 === 2) {
@@ -2253,33 +2128,137 @@
       osc.stop(t + 0.24);
     }
 
-    function playWinSfx() {
-      const actx = getAudioContext();
-      if (!actx) return;
-      const t = actx.currentTime + 0.02;
-      [523, 659, 784].forEach((freq, i) => {
-        const osc = actx.createOscillator();
-        const g = actx.createGain();
-        osc.type = "square";
-        osc.frequency.value = freq;
-        const t0 = t + i * 0.08;
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.08, t0 + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
-        osc.connect(g);
-        g.connect(actx.destination);
-        osc.start(t0);
-        osc.stop(t0 + 0.13);
-      });
+    function appendPattern(atX) {
+      const hop = hopDist(currentSpeed(atX));
+      const near = hop * 0.92;
+      const mid = hop * 1.15;
+      const far = hop * 1.55;
+      const gap = hop * 1.35;
+      const list = [];
+      const add = (o) => list.push(o);
+      const px = (n) => Math.round(n);
+      const spike = (x) => add({ type: "spike", x: px(x), w: SPIKE, h: SPIKE });
+      const ceil = (x, h = 70 + Math.floor(rng() * 40)) =>
+        add({ type: "ceil", x: px(x), w: SPIKE, h });
+      const block = (x, h) => add({ type: "block", x: px(x), w: BLOCK, h });
+      const plat = (x, top, w = BLOCK) => add({ type: "plat", x: px(x), w, h: 18, top });
+
+      const patterns = [
+        (x) => {
+          spike(x);
+          return SPIKE;
+        },
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 6);
+          return SPIKE * 2 + 6;
+        },
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 4);
+          spike(x + (SPIKE + 4) * 2);
+          return SPIKE * 3 + 8;
+        },
+        (x) => {
+          spike(x);
+          spike(x + near);
+          return near + SPIKE;
+        },
+        (x) => {
+          block(x, BLOCK);
+          block(x + BLOCK, BLOCK * 2);
+          spike(x + BLOCK * 2 + mid * 0.55);
+          return BLOCK * 2 + mid * 0.55 + SPIKE;
+        },
+        (x) => {
+          block(x, BLOCK * 2);
+          block(x + BLOCK, BLOCK);
+          spike(x + BLOCK * 2 + mid * 0.5);
+          return BLOCK * 2 + mid * 0.5 + SPIKE;
+        },
+        (x) => {
+          block(x, BLOCK);
+          spike(x + BLOCK + hop * 0.45);
+          block(x + BLOCK + hop * 1.05, BLOCK);
+          return BLOCK + hop * 1.05 + BLOCK;
+        },
+        (x) => {
+          ceil(x, 78 + Math.floor(rng() * 30));
+          spike(x + mid);
+          return mid + SPIKE;
+        },
+        (x) => {
+          spike(x);
+          ceil(x + hop * 0.35, 95);
+          spike(x + mid);
+          return mid + SPIKE;
+        },
+        (x) => {
+          const top = GROUND_Y - 56 - Math.floor(rng() * 20);
+          plat(x, top, 44);
+          plat(x + mid, top - 18, 44);
+          spike(x + mid * 2);
+          return mid * 2 + SPIKE;
+        },
+        (x) => {
+          for (let i = 0; i < 4; i += 1) spike(x + i * near);
+          return near * 3 + SPIKE;
+        },
+        (x) => {
+          block(x, BLOCK);
+          ceil(x + hop * 0.55, 100);
+          block(x + hop * 1.15, BLOCK);
+          return hop * 1.15 + BLOCK;
+        },
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 6);
+          spike(x + far);
+          spike(x + far + SPIKE + 6);
+          return far + SPIKE * 2 + 6;
+        },
+      ];
+
+      const progress = Math.min(1, atX / 12000);
+      let idx;
+      if (progress < 0.15) idx = Math.floor(rng() * 6);
+      else if (progress < 0.45) idx = Math.floor(rng() * patterns.length);
+      else idx = 4 + Math.floor(rng() * (patterns.length - 4));
+
+      const width = patterns[idx](atX);
+      const packGap = gap * (1.05 + rng() * 0.55);
+      return { list, advance: width + packGap };
+    }
+
+    function ensureHazards() {
+      const target = camX + LOOKAHEAD;
+      let guard = 0;
+      while (genX < target && guard < 12) {
+        guard += 1;
+        const { list, advance } = appendPattern(genX);
+        for (let i = 0; i < list.length; i += 1) hazards.push(list[i]);
+        genX += advance;
+      }
+      // prune far behind
+      const cut = camX - PRUNE_BEHIND;
+      if (hazards.length > 40) {
+        hazards = hazards.filter((h) => h.x + (h.w || 30) > cut);
+      }
+    }
+
+    function distMeters() {
+      return Math.floor(camX / 10);
     }
 
     function updateHud() {
-      const pct = Math.max(0, Math.min(100, (camX / LEVEL_LEN) * 100));
-      bestProgress = Math.max(bestProgress, pct);
+      const d = distMeters();
+      bestDist = Math.max(bestDist, d);
+      const spd = currentSpeed(camX);
+      const spdPct = ((spd - BASE_SPEED) / (MAX_SPEED - BASE_SPEED)) * 100;
       attemptEl.textContent = `Attempt ${attempts}`;
-      progressEl.textContent = `${Math.floor(pct)}%`;
-      bestEl.textContent = `Best ${Math.floor(bestProgress)}%`;
-      barFill.style.width = `${pct}%`;
+      distEl.textContent = `${d}m`;
+      speedEl.textContent = `${(spd / BASE_SPEED).toFixed(2)}×`;
+      barFill.style.width = `${Math.max(0, Math.min(100, spdPct))}%`;
     }
 
     function resetPlayer() {
@@ -2289,9 +2268,9 @@
       player.onGround = true;
       player.rot = 0;
       camX = 0;
+      speed = BASE_SPEED;
       jumpQueued = false;
       dead = false;
-      won = false;
       finished = false;
     }
 
@@ -2314,8 +2293,19 @@
       return rectsOverlap({ x: px + 3, y: py + 2, w: CUBE - 6, h: CUBE - 4 }, box);
     }
 
+    function awardRunXp(dist) {
+      if (xpAwarded) return;
+      xpAwarded = true;
+      let xp = 0;
+      if (dist >= 500) xp = 20;
+      else if (dist >= 300) xp = 14;
+      else if (dist >= 150) xp = 10;
+      else if (dist >= 50) xp = 6;
+      if (xp > 0) addXp(xp, `Cube Rush ${dist}m`);
+    }
+
     function die() {
-      if (dead || won) return;
+      if (dead) return;
       dead = true;
       running = false;
       finished = true;
@@ -2323,46 +2313,24 @@
       cancelAnimationFrame(rafId);
       stopMusic();
       playDeathSfx();
+      const d = distMeters();
+      bestDist = Math.max(bestDist, d);
       attempts += 1;
       updateHud();
-      els.gameStatus.textContent = `Crashed at ${Math.floor((camX / LEVEL_LEN) * 100)}% — retry same layout, or Start for a new one.`;
+      awardRunXp(d);
+      els.gameStatus.textContent = `Crashed at ${d}m · best ${bestDist}m`;
       overlay.hidden = false;
       overlay.innerHTML = `
         <div class="dash-overlay-title">Crashed!</div>
-        <div class="dash-overlay-sub">${Math.floor((camX / LEVEL_LEN) * 100)}% · Attempt ${attempts - 1}</div>
+        <div class="dash-overlay-sub">${d}m · Best ${bestDist}m · ${(speed / BASE_SPEED).toFixed(2)}× speed</div>
       `;
       startBtn.hidden = false;
-      startBtn.textContent = "Retry Layout";
-      startBtn.dataset.mode = "retry";
-    }
-
-    function win() {
-      if (won || dead) return;
-      won = true;
-      running = false;
-      finished = true;
-      cancelAnimationFrame(rafId);
-      stopMusic();
-      playWinSfx();
-      camX = LEVEL_LEN;
-      updateHud();
-      els.gameStatus.textContent = `Track cleared in ${attempts} attempt${attempts === 1 ? "" : "s"}!`;
-      overlay.hidden = false;
-      overlay.innerHTML = `
-        <div class="dash-overlay-title">Cleared!</div>
-        <div class="dash-overlay-sub">${attempts} attempt${attempts === 1 ? "" : "s"}</div>
-      `;
-      startBtn.hidden = false;
-      startBtn.textContent = "New Random Run";
+      startBtn.textContent = "Run Again";
       startBtn.dataset.mode = "new";
-      if (!xpAwarded) {
-        xpAwarded = true;
-        addXp(18, "Cube Rush clear");
-      }
     }
 
     function tryJump() {
-      if (!running || dead || won) {
+      if (!running || dead) {
         jumpQueued = true;
         return;
       }
@@ -2390,21 +2358,20 @@
       ctx2d.fillStyle = "#3dff9a";
       ctx2d.fillRect(0, GROUND_Y, W, 3);
 
-      // grid ticks like GD ground
       ctx2d.fillStyle = "rgba(61,255,154,0.15)";
       const tile = 40;
       const off = -((camX % tile) + tile) % tile;
       for (let x = off; x < W; x += tile) ctx2d.fillRect(x, GROUND_Y + 8, 2, 14);
 
-      const finishScreen = LEVEL_LEN - camX;
-      if (finishScreen > -30 && finishScreen < W + 30) {
-        ctx2d.fillStyle = "#ffd640";
-        for (let row = 0; row < 7; row += 1) {
-          for (let col = 0; col < 2; col += 1) {
-            if ((row + col) % 2 === 0) {
-              ctx2d.fillRect(finishScreen + col * 12, GROUND_Y - 100 + row * 14, 12, 14);
-            }
-          }
+      // speed streaks at high velocity
+      if (speed > BASE_SPEED * 1.25) {
+        ctx2d.strokeStyle = "rgba(255,255,255,0.08)";
+        for (let i = 0; i < 5; i += 1) {
+          const y = 50 + i * 28;
+          ctx2d.beginPath();
+          ctx2d.moveTo(0, y);
+          ctx2d.lineTo(40 + (speed - BASE_SPEED) * 0.2, y);
+          ctx2d.stroke();
         }
       }
 
@@ -2442,10 +2409,8 @@
         }
       }
 
-      const px = 120;
-      const py = player.y;
       ctx2d.save();
-      ctx2d.translate(px + CUBE / 2, py + CUBE / 2);
+      ctx2d.translate(120 + CUBE / 2, player.y + CUBE / 2);
       ctx2d.rotate(player.rot);
       ctx2d.fillStyle = "#ff4d8d";
       ctx2d.fillRect(-CUBE / 2, -CUBE / 2, CUBE, CUBE);
@@ -2455,8 +2420,10 @@
     }
 
     function step(dt) {
-      camX += SPEED * dt;
+      speed = currentSpeed(camX);
+      camX += speed * dt;
       player.x = camX + 120;
+      ensureHazards();
 
       if (jumpQueued && player.onGround) {
         player.vy = JUMP_V;
@@ -2537,11 +2504,6 @@
         return;
       }
 
-      if (camX >= LEVEL_LEN) {
-        win();
-        return;
-      }
-
       updateHud();
     }
 
@@ -2556,29 +2518,23 @@
       if (running) rafId = requestAnimationFrame(frame);
     }
 
-    function begin(mode) {
-      const wantNew = mode === "new" || !hazards.length || won;
-      if (wantNew) {
-        levelSeed = (Math.random() * 1e9) | 0;
-        if (won || mode === "new") {
-          attempts = 1;
-          xpAwarded = false;
-        }
-      } else {
-        levelSeed = lastFailSeed;
-      }
-      hazards = buildLevel(levelSeed);
+    function begin() {
+      levelSeed = (Math.random() * 1e9) | 0;
       lastFailSeed = levelSeed;
+      rng = mulberry32(levelSeed);
+      hazards = [];
+      genX = hopDist(BASE_SPEED) * 2.8;
+      xpAwarded = false;
       resetPlayer();
+      ensureHazards();
       overlay.hidden = true;
       overlay.innerHTML = "";
       startBtn.hidden = true;
-      startBtn.dataset.mode = "";
       running = true;
       finished = false;
       lastTs = 0;
       updateHud();
-      els.gameStatus.textContent = `Seed ${levelSeed} · Jump!`;
+      els.gameStatus.textContent = "Endless · go as far as you can!";
       stopMusic();
       startMusic();
       cancelAnimationFrame(rafId);
@@ -2589,35 +2545,32 @@
     function onKey(e) {
       if (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
         e.preventDefault();
-        if (!running && !finished) return;
         if (!running && finished) {
-          begin(dead ? "retry" : "new");
+          begin();
           return;
         }
+        if (!running) return;
         tryJump();
       }
     }
 
-    startBtn.addEventListener("click", () => {
-      const mode = startBtn.dataset.mode || "new";
-      begin(mode === "retry" ? "retry" : "new");
-    });
+    startBtn.addEventListener("click", begin);
     canvas.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       if (!running) {
-        if (!startBtn.hidden) {
-          begin(startBtn.dataset.mode === "retry" ? "retry" : "new");
-        }
+        if (!startBtn.hidden) begin();
         return;
       }
       tryJump();
     });
     document.addEventListener("keydown", onKey);
 
-    hazards = buildLevel(levelSeed);
+    rng = mulberry32(levelSeed);
+    genX = hopDist(BASE_SPEED) * 2.8;
+    ensureHazards();
     attemptEl.textContent = "Attempt 1";
-    progressEl.textContent = "0%";
-    bestEl.textContent = "Best 0%";
+    distEl.textContent = "0m";
+    speedEl.textContent = "1.00×";
     draw();
 
     gameCleanup = () => {
