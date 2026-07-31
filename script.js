@@ -38,7 +38,7 @@
       id: "forest",
       name: "Forest Circuit",
       cost: 20,
-      desc: "Cool green focus canopy.",
+      desc: "Mountain ridges, pine treeline, and cool alpine light.",
       swatch: "linear-gradient(90deg, #3dff9a, #d4ff5a)",
     },
     {
