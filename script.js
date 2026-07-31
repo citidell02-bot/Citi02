@@ -79,7 +79,7 @@
       id: "dash",
       name: "Cube Rush",
       cost: 30,
-      desc: "Geometry Dash-style auto-runner — jump spikes and ceiling traps.",
+      desc: "Faster Geometry Dash-style runner with randomized spike/block patterns.",
     },
   ];
 
@@ -1925,44 +1925,155 @@
     const H = 320;
     const GROUND_Y = 250;
     const CUBE = 26;
-    const SPEED = 255;
-    // ~1.5× previous hop distance (~140px air travel)
-    const GRAVITY = 2400;
-    const JUMP_V = -650;
-    const LEVEL_LEN = 4500;
+    const SPEED = 310;
+    const GRAVITY = 2500;
+    const JUMP_V = -660;
+    const LEVEL_LEN = 5200;
+    const SPIKE = 24;
+    const BLOCK = 34;
 
-    const hazards = [
-      { type: "spike", x: 500, w: 24, h: 24 },
-      { type: "spike", x: 680, w: 24, h: 24 },
-      { type: "block", x: 880, w: 36, h: 36 },
-      { type: "spike", x: 980, w: 24, h: 24 },
-      { type: "spike", x: 1160, w: 24, h: 24 },
-      { type: "spike", x: 1220, w: 24, h: 24 },
-      { type: "block", x: 1420, w: 36, h: 36 },
-      { type: "block", x: 1456, w: 36, h: 72 },
-      { type: "spike", x: 1640, w: 24, h: 24 },
-      { type: "ceil", x: 1800, w: 24, h: 72 },
-      { type: "spike", x: 1860, w: 24, h: 24 },
-      { type: "spike", x: 2040, w: 24, h: 24 },
-      { type: "block", x: 2240, w: 34, h: 34 },
-      { type: "spike", x: 2340, w: 24, h: 24 },
-      { type: "spike", x: 2520, w: 24, h: 24 },
-      { type: "spike", x: 2580, w: 24, h: 24 },
-      { type: "spike", x: 2640, w: 24, h: 24 },
-      { type: "block", x: 2840, w: 36, h: 36 },
-      { type: "block", x: 2876, w: 36, h: 64 },
-      { type: "ceil", x: 3040, w: 24, h: 88 },
-      { type: "spike", x: 3100, w: 24, h: 24 },
-      { type: "spike", x: 3280, w: 24, h: 24 },
-      { type: "block", x: 3480, w: 40, h: 40 },
-      { type: "spike", x: 3600, w: 24, h: 24 },
-      { type: "spike", x: 3780, w: 24, h: 24 },
-      { type: "spike", x: 3840, w: 24, h: 24 },
-      { type: "ceil", x: 4000, w: 26, h: 96 },
-      { type: "block", x: 4100, w: 36, h: 36 },
-      { type: "spike", x: 4240, w: 24, h: 24 },
-      { type: "spike", x: 4380, w: 24, h: 24 },
-    ];
+    function mulberry32(seed) {
+      let a = seed >>> 0;
+      return function rng() {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function buildLevel(seed) {
+      const rng = mulberry32(seed);
+      const list = [];
+      const add = (obj) => list.push(obj);
+
+      function spike(x) {
+        add({ type: "spike", x, w: SPIKE, h: SPIKE });
+      }
+      function ceil(x, h = 70 + Math.floor(rng() * 40)) {
+        add({ type: "ceil", x, w: SPIKE, h });
+      }
+      function block(x, h) {
+        add({ type: "block", x, w: BLOCK, h });
+      }
+      function plat(x, top, w = BLOCK) {
+        add({ type: "plat", x, w, h: 18, top });
+      }
+
+      // GD-style pattern kits (return width used)
+      const patterns = [
+        // single spike
+        (x) => {
+          spike(x);
+          return 40;
+        },
+        // double spike
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 4);
+          return 70;
+        },
+        // triple spike
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 2);
+          spike(x + (SPIKE + 2) * 2);
+          return 100;
+        },
+        // spike · gap · spike
+        (x) => {
+          spike(x);
+          spike(x + 150 + Math.floor(rng() * 40));
+          return 220;
+        },
+        // stair up + exit spike
+        (x) => {
+          block(x, BLOCK);
+          block(x + BLOCK, BLOCK * 2);
+          spike(x + BLOCK * 2 + 50);
+          return BLOCK * 2 + 90;
+        },
+        // stair down from tall
+        (x) => {
+          block(x, BLOCK * 2);
+          block(x + BLOCK, BLOCK);
+          spike(x + BLOCK * 2 + 40);
+          return BLOCK * 2 + 80;
+        },
+        // pillar hop
+        (x) => {
+          block(x, BLOCK);
+          spike(x + BLOCK + 36);
+          block(x + BLOCK + 100, BLOCK);
+          return BLOCK + 150;
+        },
+        // ceiling bite
+        (x) => {
+          ceil(x, 78 + Math.floor(rng() * 30));
+          spike(x + 55);
+          return 120;
+        },
+        // floor + ceiling sandwich
+        (x) => {
+          spike(x);
+          ceil(x + 30, 95);
+          spike(x + 90);
+          return 140;
+        },
+        // floating pads
+        (x) => {
+          const top = GROUND_Y - 56 - Math.floor(rng() * 24);
+          plat(x, top, 40);
+          plat(x + 110, top - 20, 40);
+          spike(x + 200);
+          return 250;
+        },
+        // saw wave (4 spikes spaced for short hops)
+        (x) => {
+          for (let i = 0; i < 4; i += 1) spike(x + i * 95);
+          return 95 * 3 + 40;
+        },
+        // block tunnel with ceiling
+        (x) => {
+          block(x, BLOCK);
+          ceil(x + 50, 100);
+          block(x + 120, BLOCK);
+          return 180;
+        },
+        // late rush: dense doubles
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 4);
+          spike(x + 130);
+          spike(x + 130 + SPIKE + 4);
+          return 200;
+        },
+      ];
+
+      let x = 460 + Math.floor(rng() * 40);
+      let guard = 0;
+      while (x < LEVEL_LEN - 280 && guard < 80) {
+        guard += 1;
+        // weight later patterns harder
+        const progress = x / LEVEL_LEN;
+        let idx;
+        if (progress < 0.2) idx = Math.floor(rng() * 6);
+        else if (progress < 0.55) idx = Math.floor(rng() * patterns.length);
+        else idx = 4 + Math.floor(rng() * (patterns.length - 4));
+        const width = patterns[idx](x);
+        x += width + 70 + Math.floor(rng() * 90);
+      }
+
+      // finish approach
+      spike(LEVEL_LEN - 220);
+      spike(LEVEL_LEN - 160);
+      return list;
+    }
+
+    let hazards = [];
+    let levelSeed = (Math.random() * 1e9) | 0;
+    let lastFailSeed = levelSeed;
 
     let running = false;
     let finished = false;
@@ -2019,11 +2130,11 @@
 
     const hint = document.createElement("p");
     hint.className = "dash-hint";
-    hint.textContent = "Space / ↑ / click / tap to jump · avoid spikes · land on blocks";
+    hint.textContent = "Space / ↑ / click / tap · randomized Geometry Dash-style layouts each new run";
 
     root.append(hud, bar, canvas, overlay, startBtn, hint);
     els.gameStage.appendChild(root);
-    els.gameStatus.textContent = "Cube Rush — jump the spikes and ride the blocks to the end.";
+    els.gameStatus.textContent = "Cube Rush — faster pace, random spike/block patterns each run.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-dash");
 
     let musicToken = 0;
@@ -2034,7 +2145,7 @@
       const token = musicToken;
       actx.resume?.().catch?.(() => {});
       const t0 = actx.currentTime + 0.05;
-      const beat = 60 / 150;
+      const beat = 60 / 160;
       const gain = actx.createGain();
       gain.gain.value = 0.2;
       gain.connect(actx.destination);
@@ -2056,9 +2167,9 @@
         osc.stop(t + dur + 0.02);
       }
 
-      for (let i = 0; i < 56; i += 1) {
+      for (let i = 0; i < 64; i += 1) {
         const t = t0 + i * beat;
-        if (i % 4 === 0) beep("sine", 160, t, 0.12, 0.5, 45);
+        if (i % 4 === 0) beep("sine", 160, t, 0.11, 0.5, 45);
         if (i % 4 === 2) {
           const src = actx.createBufferSource();
           src.buffer = noiseBuf;
@@ -2075,7 +2186,7 @@
           src.start(t);
           src.stop(t + 0.1);
         }
-        if (i % 2 === 0) beep("square", 240 + (i % 8) * 16, t + beat * 0.25, 0.07, 0.035);
+        if (i % 2 === 0) beep("square", 260 + (i % 8) * 14, t + beat * 0.25, 0.06, 0.035);
       }
       startMusic._gain = gain;
     }
@@ -2102,15 +2213,15 @@
       const osc = actx.createOscillator();
       const g = actx.createGain();
       osc.type = "square";
-      osc.frequency.setValueAtTime(500, t);
-      osc.frequency.exponentialRampToValueAtTime(720, t + 0.07);
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(760, t + 0.06);
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.07, t + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
       osc.connect(g);
       g.connect(actx.destination);
       osc.start(t);
-      osc.stop(t + 0.09);
+      osc.stop(t + 0.08);
     }
 
     function playDeathSfx() {
@@ -2187,8 +2298,8 @@
       return rectsOverlap({ x: px, y: py, w: CUBE, h: CUBE }, box);
     }
 
-    function ceilHit(px, py, ceil) {
-      const box = { x: ceil.x + 3, y: 0, w: ceil.w - 6, h: ceil.h - 2 };
+    function ceilHit(px, py, c) {
+      const box = { x: c.x + 3, y: 0, w: c.w - 6, h: c.h - 2 };
       return rectsOverlap({ x: px + 3, y: py + 2, w: CUBE - 6, h: CUBE - 4 }, box);
     }
 
@@ -2197,19 +2308,21 @@
       dead = true;
       running = false;
       finished = true;
+      lastFailSeed = levelSeed;
       cancelAnimationFrame(rafId);
       stopMusic();
       playDeathSfx();
       attempts += 1;
       updateHud();
-      els.gameStatus.textContent = `Crashed at ${Math.floor((camX / LEVEL_LEN) * 100)}% — try again.`;
+      els.gameStatus.textContent = `Crashed at ${Math.floor((camX / LEVEL_LEN) * 100)}% — retry same layout, or Start for a new one.`;
       overlay.hidden = false;
       overlay.innerHTML = `
         <div class="dash-overlay-title">Crashed!</div>
         <div class="dash-overlay-sub">${Math.floor((camX / LEVEL_LEN) * 100)}% · Attempt ${attempts - 1}</div>
       `;
       startBtn.hidden = false;
-      startBtn.textContent = "Retry";
+      startBtn.textContent = "Retry Layout";
+      startBtn.dataset.mode = "retry";
     }
 
     function win() {
@@ -2229,7 +2342,8 @@
         <div class="dash-overlay-sub">${attempts} attempt${attempts === 1 ? "" : "s"}</div>
       `;
       startBtn.hidden = false;
-      startBtn.textContent = "Play Again";
+      startBtn.textContent = "New Random Run";
+      startBtn.dataset.mode = "new";
       if (!xpAwarded) {
         xpAwarded = true;
         addXp(18, "Cube Rush clear");
@@ -2249,23 +2363,27 @@
     }
 
     function draw() {
-      // flat fills only — avoid per-frame gradients/shadows for performance
       ctx2d.fillStyle = "#1a1040";
       ctx2d.fillRect(0, 0, W, H);
       ctx2d.fillStyle = "#2a1460";
-      ctx2d.fillRect(0, 0, W, 90);
+      ctx2d.fillRect(0, 0, W, 80);
 
       ctx2d.fillStyle = "rgba(255,255,255,0.05)";
       for (let i = 0; i < 6; i += 1) {
-        const x = ((i * 110 - camX * 0.2) % (W + 110)) - 40;
-        ctx2d.fillRect(x, 36 + (i % 2) * 22, 40, 8);
+        const x = ((i * 110 - camX * 0.22) % (W + 110)) - 40;
+        ctx2d.fillRect(x, 34 + (i % 2) * 20, 40, 7);
       }
 
-      // ground
       ctx2d.fillStyle = "#0d1a14";
       ctx2d.fillRect(0, GROUND_Y, W, H - GROUND_Y);
       ctx2d.fillStyle = "#3dff9a";
       ctx2d.fillRect(0, GROUND_Y, W, 3);
+
+      // grid ticks like GD ground
+      ctx2d.fillStyle = "rgba(61,255,154,0.15)";
+      const tile = 40;
+      const off = -((camX % tile) + tile) % tile;
+      for (let x = off; x < W; x += tile) ctx2d.fillRect(x, GROUND_Y + 8, 2, 14);
 
       const finishScreen = LEVEL_LEN - camX;
       if (finishScreen > -30 && finishScreen < W + 30) {
@@ -2282,7 +2400,7 @@
       for (let i = 0; i < hazards.length; i += 1) {
         const hz = hazards[i];
         const sx = hz.x - camX;
-        if (sx < -50 || sx > W + 50) continue;
+        if (sx < -60 || sx > W + 60) continue;
         if (hz.type === "spike") {
           ctx2d.fillStyle = "#ff4d6d";
           ctx2d.beginPath();
@@ -2303,8 +2421,13 @@
           const y = GROUND_Y - hz.h;
           ctx2d.fillStyle = "#5adcff";
           ctx2d.fillRect(sx, y, hz.w, hz.h);
-          ctx2d.fillStyle = "rgba(255,255,255,0.2)";
+          ctx2d.fillStyle = "rgba(255,255,255,0.22)";
           ctx2d.fillRect(sx + 3, y + 3, hz.w - 6, 5);
+        } else if (hz.type === "plat") {
+          ctx2d.fillStyle = "#7aecff";
+          ctx2d.fillRect(sx, hz.top, hz.w, hz.h);
+          ctx2d.fillStyle = "rgba(255,255,255,0.25)";
+          ctx2d.fillRect(sx + 2, hz.top + 2, hz.w - 4, 4);
         }
       }
 
@@ -2338,28 +2461,41 @@
 
       let floorY = GROUND_Y;
       const pBox = { x: player.x, y: player.y, w: CUBE, h: CUBE };
+
       for (let i = 0; i < hazards.length; i += 1) {
         const hz = hazards[i];
-        if (hz.type !== "block") continue;
-        const top = GROUND_Y - hz.h;
-        const block = { x: hz.x, y: top, w: hz.w, h: hz.h };
-        if (
-          player.vy >= 0 &&
-          pBox.x + 4 < block.x + block.w &&
-          pBox.x + pBox.w - 4 > block.x &&
-          player.y + CUBE >= top &&
-          player.y + CUBE - player.vy * dt <= top + 8
-        ) {
-          floorY = Math.min(floorY, top);
-        }
-        if (
-          rectsOverlap(
-            { x: pBox.x + 6, y: pBox.y + 4, w: CUBE - 12, h: CUBE - 8 },
-            { x: block.x, y: block.y + 8, w: block.w, h: block.h - 8 }
-          )
-        ) {
-          die();
-          return;
+        if (hz.type === "block") {
+          const top = GROUND_Y - hz.h;
+          const block = { x: hz.x, y: top, w: hz.w, h: hz.h };
+          if (
+            player.vy >= 0 &&
+            pBox.x + 4 < block.x + block.w &&
+            pBox.x + pBox.w - 4 > block.x &&
+            player.y + CUBE >= top &&
+            player.y + CUBE - player.vy * dt <= top + 8
+          ) {
+            floorY = Math.min(floorY, top);
+          }
+          if (
+            rectsOverlap(
+              { x: pBox.x + 6, y: pBox.y + 4, w: CUBE - 12, h: CUBE - 8 },
+              { x: block.x, y: block.y + 8, w: block.w, h: block.h - 8 }
+            )
+          ) {
+            die();
+            return;
+          }
+        } else if (hz.type === "plat") {
+          const top = hz.top;
+          if (
+            player.vy >= 0 &&
+            pBox.x + 4 < hz.x + hz.w &&
+            pBox.x + pBox.w - 4 > hz.x &&
+            player.y + CUBE >= top &&
+            player.y + CUBE - player.vy * dt <= top + 8
+          ) {
+            floorY = Math.min(floorY, top);
+          }
         }
       }
 
@@ -2370,7 +2506,7 @@
         player.rot = Math.round(player.rot / (Math.PI / 2)) * (Math.PI / 2);
       } else {
         player.onGround = false;
-        player.rot += 8.5 * dt;
+        player.rot += 9 * dt;
       }
 
       for (let i = 0; i < hazards.length; i += 1) {
@@ -2409,16 +2545,29 @@
       if (running) rafId = requestAnimationFrame(frame);
     }
 
-    function begin() {
+    function begin(mode) {
+      const wantNew = mode === "new" || !hazards.length || won;
+      if (wantNew) {
+        levelSeed = (Math.random() * 1e9) | 0;
+        if (won || mode === "new") {
+          attempts = 1;
+          xpAwarded = false;
+        }
+      } else {
+        levelSeed = lastFailSeed;
+      }
+      hazards = buildLevel(levelSeed);
+      lastFailSeed = levelSeed;
       resetPlayer();
       overlay.hidden = true;
       overlay.innerHTML = "";
       startBtn.hidden = true;
+      startBtn.dataset.mode = "";
       running = true;
       finished = false;
       lastTs = 0;
       updateHud();
-      els.gameStatus.textContent = "Jump!";
+      els.gameStatus.textContent = `Seed ${levelSeed} · Jump!`;
       stopMusic();
       startMusic();
       cancelAnimationFrame(rafId);
@@ -2431,24 +2580,30 @@
         e.preventDefault();
         if (!running && !finished) return;
         if (!running && finished) {
-          begin();
+          begin(dead ? "retry" : "new");
           return;
         }
         tryJump();
       }
     }
 
-    startBtn.addEventListener("click", begin);
+    startBtn.addEventListener("click", () => {
+      const mode = startBtn.dataset.mode || "new";
+      begin(mode === "retry" ? "retry" : "new");
+    });
     canvas.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       if (!running) {
-        if (!startBtn.hidden) begin();
+        if (!startBtn.hidden) {
+          begin(startBtn.dataset.mode === "retry" ? "retry" : "new");
+        }
         return;
       }
       tryJump();
     });
     document.addEventListener("keydown", onKey);
 
+    hazards = buildLevel(levelSeed);
     attemptEl.textContent = "Attempt 1";
     progressEl.textContent = "0%";
     bestEl.textContent = "Best 0%";
