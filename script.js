@@ -1928,7 +1928,11 @@
     const SPEED = 310;
     const GRAVITY = 2500;
     const JUMP_V = -660;
-    const LEVEL_LEN = 5200;
+    // One full jump travels this far at current scroll speed
+    const JUMP_DIST = (SPEED * 2 * Math.abs(JUMP_V)) / GRAVITY;
+    const HOP = JUMP_DIST; // ~164px at current tunings
+    const GAP = JUMP_DIST * 1.35; // breathing room between pattern packs
+    const LEVEL_LEN = Math.round(HOP * 42);
     const SPIKE = 24;
     const BLOCK = 34;
 
@@ -1947,127 +1951,134 @@
       const rng = mulberry32(seed);
       const list = [];
       const add = (obj) => list.push(obj);
+      const px = (n) => Math.round(n);
 
       function spike(x) {
-        add({ type: "spike", x, w: SPIKE, h: SPIKE });
+        add({ type: "spike", x: px(x), w: SPIKE, h: SPIKE });
       }
       function ceil(x, h = 70 + Math.floor(rng() * 40)) {
-        add({ type: "ceil", x, w: SPIKE, h });
+        add({ type: "ceil", x: px(x), w: SPIKE, h });
       }
       function block(x, h) {
-        add({ type: "block", x, w: BLOCK, h });
+        add({ type: "block", x: px(x), w: BLOCK, h });
       }
       function plat(x, top, w = BLOCK) {
-        add({ type: "plat", x, w, h: 18, top });
+        add({ type: "plat", x: px(x), w, h: 18, top });
       }
 
-      // GD-style pattern kits (return width used)
+      // Spacings scale with JUMP_DIST so faster speed keeps the same timing feel,
+      // and packs sit farther apart overall.
+      const hop = HOP;
+      const near = hop * 0.92;
+      const mid = hop * 1.15;
+      const far = hop * 1.55;
+
       const patterns = [
         // single spike
         (x) => {
           spike(x);
-          return 40;
+          return SPIKE;
         },
-        // double spike
+        // double spike (tight cluster — one jump clears)
+        (x) => {
+          spike(x);
+          spike(x + SPIKE + 6);
+          return SPIKE * 2 + 6;
+        },
+        // triple spike cluster
         (x) => {
           spike(x);
           spike(x + SPIKE + 4);
-          return 70;
+          spike(x + (SPIKE + 4) * 2);
+          return SPIKE * 3 + 8;
         },
-        // triple spike
+        // two singles a full hop apart
         (x) => {
           spike(x);
-          spike(x + SPIKE + 2);
-          spike(x + (SPIKE + 2) * 2);
-          return 100;
+          spike(x + near);
+          return near + SPIKE;
         },
-        // spike · gap · spike
-        (x) => {
-          spike(x);
-          spike(x + 150 + Math.floor(rng() * 40));
-          return 220;
-        },
-        // stair up + exit spike
+        // stair up + exit spike after a hop
         (x) => {
           block(x, BLOCK);
           block(x + BLOCK, BLOCK * 2);
-          spike(x + BLOCK * 2 + 50);
-          return BLOCK * 2 + 90;
+          spike(x + BLOCK * 2 + mid * 0.55);
+          return BLOCK * 2 + mid * 0.55 + SPIKE;
         },
-        // stair down from tall
+        // stair down
         (x) => {
           block(x, BLOCK * 2);
           block(x + BLOCK, BLOCK);
-          spike(x + BLOCK * 2 + 40);
-          return BLOCK * 2 + 80;
+          spike(x + BLOCK * 2 + mid * 0.5);
+          return BLOCK * 2 + mid * 0.5 + SPIKE;
         },
         // pillar hop
         (x) => {
           block(x, BLOCK);
-          spike(x + BLOCK + 36);
-          block(x + BLOCK + 100, BLOCK);
-          return BLOCK + 150;
+          spike(x + BLOCK + hop * 0.45);
+          block(x + BLOCK + hop * 1.05, BLOCK);
+          return BLOCK + hop * 1.05 + BLOCK;
         },
-        // ceiling bite
+        // ceiling bite, then floor spike a hop later
         (x) => {
           ceil(x, 78 + Math.floor(rng() * 30));
-          spike(x + 55);
-          return 120;
+          spike(x + mid);
+          return mid + SPIKE;
         },
-        // floor + ceiling sandwich
+        // sandwich with wider floor spacing
         (x) => {
           spike(x);
-          ceil(x + 30, 95);
-          spike(x + 90);
-          return 140;
+          ceil(x + hop * 0.35, 95);
+          spike(x + mid);
+          return mid + SPIKE;
         },
-        // floating pads
+        // floating pads spaced by hop distance
         (x) => {
-          const top = GROUND_Y - 56 - Math.floor(rng() * 24);
-          plat(x, top, 40);
-          plat(x + 110, top - 20, 40);
-          spike(x + 200);
-          return 250;
+          const top = GROUND_Y - 56 - Math.floor(rng() * 20);
+          plat(x, top, 44);
+          plat(x + mid, top - 18, 44);
+          spike(x + mid * 2);
+          return mid * 2 + SPIKE;
         },
-        // saw wave (4 spikes spaced for short hops)
+        // spike wave — each spike ~one hop apart
         (x) => {
-          for (let i = 0; i < 4; i += 1) spike(x + i * 95);
-          return 95 * 3 + 40;
+          for (let i = 0; i < 4; i += 1) spike(x + i * near);
+          return near * 3 + SPIKE;
         },
-        // block tunnel with ceiling
+        // block / ceiling / block
         (x) => {
           block(x, BLOCK);
-          ceil(x + 50, 100);
-          block(x + 120, BLOCK);
-          return 180;
+          ceil(x + hop * 0.55, 100);
+          block(x + hop * 1.15, BLOCK);
+          return hop * 1.15 + BLOCK;
         },
-        // late rush: dense doubles
+        // two double-spike packs separated by a long gap
         (x) => {
           spike(x);
-          spike(x + SPIKE + 4);
-          spike(x + 130);
-          spike(x + 130 + SPIKE + 4);
-          return 200;
+          spike(x + SPIKE + 6);
+          spike(x + far);
+          spike(x + far + SPIKE + 6);
+          return far + SPIKE * 2 + 6;
         },
       ];
 
-      let x = 460 + Math.floor(rng() * 40);
+      let x = hop * 2.6 + rng() * hop * 0.4;
       let guard = 0;
-      while (x < LEVEL_LEN - 280 && guard < 80) {
+      while (x < LEVEL_LEN - hop * 2.2 && guard < 60) {
         guard += 1;
-        // weight later patterns harder
         const progress = x / LEVEL_LEN;
         let idx;
-        if (progress < 0.2) idx = Math.floor(rng() * 6);
-        else if (progress < 0.55) idx = Math.floor(rng() * patterns.length);
+        if (progress < 0.22) idx = Math.floor(rng() * 6);
+        else if (progress < 0.6) idx = Math.floor(rng() * patterns.length);
         else idx = 4 + Math.floor(rng() * (patterns.length - 4));
         const width = patterns[idx](x);
-        x += width + 70 + Math.floor(rng() * 90);
+        // Packs sit ~1.2–2.0 jumps apart (farther than before, speed-relative)
+        const packGap = GAP * (1.05 + rng() * 0.55);
+        x += width + packGap;
       }
 
-      // finish approach
-      spike(LEVEL_LEN - 220);
-      spike(LEVEL_LEN - 160);
+      spike(LEVEL_LEN - hop * 1.4);
+      spike(LEVEL_LEN - hop * 0.85);
       return list;
     }
 
