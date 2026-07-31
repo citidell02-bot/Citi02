@@ -1293,73 +1293,9 @@ body[data-theme="sports"] .sports-scene {
   border-radius: 50%;
 }
 
-.sports-ball {
-  position: absolute;
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
-  filter: drop-shadow(0 12px 18px rgba(20, 50, 40, 0.4));
-  animation: sports-float 6s ease-in-out infinite;
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-.sports-ball-soccer {
-  width: 78px;
-  height: 78px;
-  top: 13%;
-  left: 6%;
-  animation-delay: 0s;
-}
-
-.sports-ball-basketball {
-  width: 84px;
-  height: 84px;
-  top: 22%;
-  right: 8%;
-  animation-delay: -1.2s;
-}
-
-.sports-ball-tennis {
-  width: 56px;
-  height: 56px;
-  bottom: 24%;
-  left: 13%;
-  animation-delay: -2.4s;
-}
-
-.sports-ball-football {
-  width: 98px;
-  height: 98px;
-  top: 36%;
-  left: 72%;
-  animation-delay: -3.1s;
-}
-
-.sports-ball-baseball {
-  width: 60px;
-  height: 60px;
-  bottom: 29%;
-  right: 14%;
-  animation-delay: -4s;
-}
-
-@keyframes sports-float {
-  0%, 100% { transform: translateY(0) rotate(-4deg); }
-  50% { transform: translateY(-14px) rotate(4deg); }
-}
-
 @media (max-width: 700px) {
-  .sports-ball-football,
-  .sports-ball-baseball,
   .sports-cloud-c {
     display: none;
-  }
-
-  .sports-ball-soccer,
-  .sports-ball-basketball,
-  .sports-ball-tennis {
-    transform: scale(0.85);
   }
 }
 
