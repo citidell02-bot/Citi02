@@ -45,7 +45,7 @@
       id: "aurora",
       name: "Aurora Drift",
       cost: 30,
-      desc: "Icy teal break-time glow.",
+      desc: "Night drift track with neon barriers and tire smoke.",
       swatch: "linear-gradient(90deg, #5adcff, #ff6bb5)",
     },
     {
