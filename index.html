@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Quest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <div class="sports-scene" aria-hidden="true">
+    <div class="sports-sky"></div>
+    <div class="sports-cloud sports-cloud-a"></div>
+    <div class="sports-cloud sports-cloud-b"></div>
+    <div class="sports-cloud sports-cloud-c"></div>
+    <div class="sports-field"></div>
+  </div>
+
+  <div class="forest-scene" aria-hidden="true">
+    <div class="forest-sky"></div>
+    <div class="forest-sun"></div>
+    <div class="forest-haze"></div>
+    <div class="forest-mountains forest-mountains-far"></div>
+    <div class="forest-mountains forest-mountains-mid"></div>
+    <div class="forest-mountains forest-mountains-near"></div>
+    <div class="forest-treeline"></div>
+    <div class="forest-mist forest-mist-a"></div>
+    <div class="forest-mist forest-mist-b"></div>
+  </div>
+
+  <div class="aurora-scene" aria-hidden="true">
+    <div class="aurora-sky"></div>
+    <div class="aurora-lights"></div>
+    <div class="aurora-city"></div>
+    <div class="aurora-track"></div>
+    <div class="aurora-lane"></div>
+    <div class="aurora-curve"></div>
+    <div class="aurora-skid aurora-skid-a"></div>
+    <div class="aurora-skid aurora-skid-b"></div>
+    <div class="aurora-smoke aurora-smoke-a"></div>
+    <div class="aurora-smoke aurora-smoke-b"></div>
+    <div class="aurora-smoke aurora-smoke-c"></div>
+  </div>
+
+  <div class="sonic-scene" aria-hidden="true">
+    <div class="sonic-sky"></div>
+    <div class="sonic-cloud sonic-cloud-a"></div>
+    <div class="sonic-cloud sonic-cloud-b"></div>
+    <div class="sonic-cloud sonic-cloud-c"></div>
+    <div class="sonic-hills sonic-hills-far"></div>
+    <div class="sonic-hills sonic-hills-near"></div>
+    <div class="sonic-checkered"></div>
+    <div class="sonic-loop"></div>
+    <div class="sonic-palm sonic-palm-a"></div>
+    <div class="sonic-palm sonic-palm-b"></div>
+    <div class="sonic-ring sonic-ring-a"></div>
+    <div class="sonic-ring sonic-ring-b"></div>
+    <div class="sonic-ring sonic-ring-c"></div>
+    <div class="sonic-ring sonic-ring-d"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1 class="brand-title">Study Quest</h1>
+    </div>
+    <p class="brand-tagline">Level up your focus. Complete quests. Earn XP.</p>
+    <p class="token-balance" aria-live="polite">
+      <span class="token-icon" aria-hidden="true">◆</span>
+      <span id="token-count">0</span> tokens
+    </p>
+  </header>
+
+  <main class="layout">
+    <section class="panel stats-panel" aria-labelledby="stats-heading">
+      <div class="panel-head">
+        <h2 id="stats-heading">Stats</h2>
+        <span class="panel-meta" id="stats-meta">Study progress</span>
+      </div>
+
+      <div class="xp-stats">
+        <div class="stat">
+          <span class="stat-label">Total XP</span>
+          <span class="stat-value" id="total-xp">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Quests Cleared</span>
+          <span class="stat-value" id="quests-cleared">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Sessions</span>
+          <span class="stat-value" id="sessions-done">0</span>
+        </div>
+      </div>
+
+      <div class="stat-bars" aria-label="Study stats progress">
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Focus Time</span>
+            <span id="focus-time-meta">0 / 60 min</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="60"
+            aria-valuenow="0"
+            id="focus-time-bar"
+            aria-label="Focus time progress"
+          >
+            <div class="stat-bar-fill focus-fill" id="focus-time-fill"></div>
+          </div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Quests Done</span>
+            <span id="quests-meta">0 / 10</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="10"
+            aria-valuenow="0"
+            id="quests-bar"
+            aria-label="Quests done progress"
+          >
+            <div class="stat-bar-fill quests-fill" id="quests-fill"></div>
+          </div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-meta">
+            <span>Focus Sessions</span>
+            <span id="sessions-meta">0 / 8</span>
+          </div>
+          <div
+            class="stat-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="8"
+            aria-valuenow="0"
+            id="sessions-bar"
+            aria-label="Focus sessions progress"
+          >
+            <div class="stat-bar-fill sessions-fill" id="sessions-fill"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel streak-panel" aria-labelledby="streak-heading">
+      <div class="panel-head">
+        <h2 id="streak-heading">Study Streak</h2>
+        <span class="panel-meta" id="streak-label">No streak yet</span>
+      </div>
+      <div class="streak-days" id="streak-days" aria-hidden="true"></div>
+      <div class="streak-bar-wrap">
+        <div class="streak-bar-meta">
+          <span id="streak-current">0 day streak</span>
+          <span id="streak-goal">Goal: 7 days</span>
+        </div>
+        <div
+          class="streak-bar"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="7"
+          aria-valuenow="0"
+          id="streak-bar"
+          aria-label="Study streak progress"
+        >
+          <div class="streak-bar-fill" id="streak-bar-fill"></div>
+        </div>
+      </div>
+      <p class="streak-hint" id="streak-hint">Complete a quest or focus session today to start tracking.</p>
+    </section>
+
+    <section class="panel quest-panel" aria-labelledby="quest-heading">
+      <div class="panel-head">
+        <h2 id="quest-heading">Quest Log</h2>
+        <span class="panel-meta" id="quest-count">0 active</span>
+      </div>
+
+      <form class="quest-form" id="quest-form" autocomplete="off">
+        <div class="quest-form-row">
+          <label class="sr-only" for="quest-input">New quest</label>
+          <input
+            type="text"
+            id="quest-input"
+            name="quest"
+            placeholder="Add a new quest…"
+            maxlength="80"
+            required
+          />
+          <button type="submit" class="btn btn-primary">Add Quest</button>
+        </div>
+
+        <fieldset class="difficulty-group">
+          <legend class="difficulty-legend">Difficulty</legend>
+          <div class="difficulty-options" role="radiogroup" aria-label="Quest difficulty">
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="easy" checked />
+              <span class="difficulty-chip difficulty-easy">Easy · 10 XP</span>
+            </label>
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="medium" />
+              <span class="difficulty-chip difficulty-medium">Medium · 20 XP</span>
+            </label>
+            <label class="difficulty-option">
+              <input type="radio" name="difficulty" value="hard" />
+              <span class="difficulty-chip difficulty-hard">Hard · 30 XP</span>
+            </label>
+          </div>
+        </fieldset>
+      </form>
+
+      <ul class="quest-list" id="quest-list" aria-live="polite"></ul>
+      <p class="empty-state" id="quest-empty">No quests yet. Add one to begin your run.</p>
+    </section>
+
+    <section class="panel timer-panel" aria-labelledby="timer-heading">
+      <div class="panel-head">
+        <h2 id="timer-heading">Pomodoro Timer</h2>
+        <span class="panel-meta" id="timer-mode">Focus</span>
+      </div>
+
+      <div class="timer-display" role="timer" aria-live="polite" aria-atomic="true">
+        <label class="sr-only" for="timer-minutes">Minutes</label>
+        <input
+          type="number"
+          id="timer-minutes"
+          class="timer-input"
+          min="0"
+          max="180"
+          value="0"
+          inputmode="numeric"
+          aria-label="Minutes"
+        />
+        <span class="timer-colon" aria-hidden="true">:</span>
+        <label class="sr-only" for="timer-seconds">Seconds</label>
+        <input
+          type="number"
+          id="timer-seconds"
+          class="timer-input"
+          min="0"
+          max="59"
+          value="00"
+          inputmode="numeric"
+          aria-label="Seconds"
+        />
+      </div>
+      <p class="timer-edit-hint">Enter a custom time, then Start. Reset returns to that custom time.</p>
+
+      <div class="timer-modes" role="group" aria-label="Timer mode">
+        <button type="button" class="mode-btn is-active" data-mode="focus">Focus</button>
+        <button type="button" class="mode-btn" data-mode="short" data-minutes="5">Short Break</button>
+        <button type="button" class="mode-btn" data-mode="long" data-minutes="15">Long Break</button>
+      </div>
+
+      <div class="timer-controls">
+        <button type="button" class="btn btn-primary" id="timer-toggle">Start</button>
+        <button type="button" class="btn btn-ghost" id="timer-reset">Reset</button>
+      </div>
+
+      <p class="timer-hint" id="timer-hint">Set your own study time on the clock. Focus sessions earn +25 XP.</p>
+    </section>
+
+    <section class="panel xp-panel" aria-labelledby="xp-heading">
+      <div class="panel-head">
+        <h2 id="xp-heading">Level &amp; XP</h2>
+        <span class="panel-meta" id="level-label">Beginner · Level 1</span>
+      </div>
+
+      <div class="xp-bar-wrap">
+        <div class="xp-bar-meta">
+          <span id="xp-current">0 XP</span>
+          <span id="xp-needed">100 XP to Level 2</span>
+        </div>
+        <div class="xp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="xp-bar" aria-label="XP progress">
+          <div class="xp-bar-fill" id="xp-bar-fill"></div>
+        </div>
+      </div>
+
+      <div class="xp-options">
+        <button
+          type="button"
+          class="btn btn-ghost max-level-btn"
+          id="max-level-toggle"
+          aria-pressed="false"
+        >
+          Max Level 100: Off
+        </button>
+        <button type="button" class="btn btn-primary" id="go-max-level">
+          Go Max Level
+        </button>
+        <button type="button" class="btn btn-ghost" id="reset-level">
+          Reset Level
+        </button>
+      </div>
+    </section>
+
+    <section class="panel shop-panel" aria-labelledby="shop-heading">
+      <div class="panel-head">
+        <h2 id="shop-heading">Break Shop</h2>
+        <span class="panel-meta">Spend tokens on themes &amp; games</span>
+      </div>
+      <p class="shop-intro">Earn <strong>10 tokens</strong> each time you level up. Unlock themes and play break games between study sessions.</p>
+
+      <h3 class="shop-subhead">Themes</h3>
+      <div class="shop-grid" id="theme-shop"></div>
+
+      <h3 class="shop-subhead">Break Games</h3>
+      <div class="shop-grid" id="game-shop"></div>
+    </section>
+  </main>
+
+  <div class="game-modal" id="game-modal" hidden>
+    <div class="game-modal-backdrop" data-close-game></div>
+    <div class="game-modal-card" role="dialog" aria-modal="true" aria-labelledby="game-title">
+      <div class="game-modal-head">
+        <h2 id="game-title">Break Game</h2>
+        <button type="button" class="btn btn-ghost" id="game-close" data-close-game>Close</button>
+      </div>
+      <p class="game-status" id="game-status"></p>
+      <div class="game-stage" id="game-stage"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
