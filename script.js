@@ -2,6 +2,7 @@
   "use strict";
 
   const STORAGE_KEY = "study-quest-state-v1";
+  const SHOP_REFUND_VERSION = 3; // bump to re-run a full shop refund
   const XP_PER_FOCUS = 25;
   const XP_PER_LEVEL = 100;
   const MAX_LEVEL = 100;
@@ -149,8 +150,10 @@
     ownedGames: [],
     activeTheme: "neon",
     studyDates: [],
+    shopRefundVersion: SHOP_REFUND_VERSION,
   });
 
+  let pendingShopRefundToast = 0;
   let state = loadState();
   let timer = {
     mode: "focus",
@@ -164,6 +167,39 @@
   let toastTimer = null;
   let gameCleanup = null;
 
+  function refundShopPurchases(next) {
+    const fromVersion = Number.isFinite(next.shopRefundVersion) ? next.shopRefundVersion : 0;
+    if (fromVersion >= SHOP_REFUND_VERSION) {
+      return { state: next, refunded: 0, changed: false };
+    }
+
+    let refunded = 0;
+    const themeIds = Array.isArray(next.ownedThemes) ? next.ownedThemes : ["neon"];
+    for (const id of themeIds) {
+      if (id === "neon") continue;
+      const theme = THEMES.find((t) => t.id === id);
+      if (theme && theme.cost > 0) refunded += theme.cost;
+    }
+    const gameIds = Array.isArray(next.ownedGames) ? next.ownedGames : [];
+    for (const id of gameIds) {
+      const game = GAMES.find((g) => g.id === id);
+      if (game && game.cost > 0) refunded += game.cost;
+    }
+
+    return {
+      state: {
+        ...next,
+        tokens: (Number.isFinite(next.tokens) ? next.tokens : 0) + refunded,
+        ownedThemes: ["neon"],
+        ownedGames: [],
+        activeTheme: "neon",
+        shopRefundVersion: SHOP_REFUND_VERSION,
+      },
+      refunded,
+      changed: true,
+    };
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -176,7 +212,7 @@
       const ownedGames = Array.isArray(parsed.ownedGames) ? parsed.ownedGames : [];
       let activeTheme = parsed.activeTheme === "ember" ? "sports" : parsed.activeTheme;
       activeTheme = ownedThemes.includes(activeTheme) ? activeTheme : "neon";
-      return {
+      let next = {
         ...base,
         ...parsed,
         quests: Array.isArray(parsed.quests) ? parsed.quests : [],
@@ -188,7 +224,16 @@
         studyDates: Array.isArray(parsed.studyDates)
           ? [...new Set(parsed.studyDates.filter((d) => typeof d === "string"))]
           : [],
+        shopRefundVersion: Number.isFinite(parsed.shopRefundVersion) ? parsed.shopRefundVersion : 0,
       };
+
+      const refund = refundShopPurchases(next);
+      next = refund.state;
+      if (refund.changed) {
+        if (refund.refunded > 0) pendingShopRefundToast = refund.refunded;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
     } catch {
       return defaultState();
     }
@@ -3230,4 +3275,8 @@
   renderShop();
   renderStreak();
   renderTimer();
+  if (pendingShopRefundToast > 0) {
+    showToast(`Shop refunded · +${pendingShopRefundToast} tokens`);
+    pendingShopRefundToast = 0;
+  }
 })();
