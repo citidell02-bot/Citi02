@@ -1293,11 +1293,45 @@ body[data-theme="sports"] .sports-scene {
   border-radius: 50%;
 }
 
+
+.sports-balls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sports-ball {
+  position: absolute;
+  width: var(--ball-size, 64px);
+  height: var(--ball-size, 64px);
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(20, 50, 40, 0.4));
+  opacity: 0.95;
+  animation: sports-float 7.5s ease-in-out infinite;
+  animation-delay: var(--ball-delay, 0s);
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: transform;
+}
+
+@keyframes sports-float {
+  0%, 100% { transform: translateY(0) rotate(var(--ball-rot, 0deg)) scale(1); }
+  50% { transform: translateY(-18px) rotate(var(--ball-rot, 0deg)) scale(1.03); }
+}
+
 @media (max-width: 700px) {
   .sports-cloud-c {
     display: none;
   }
+
+  .sports-ball {
+    opacity: 0.9;
+    width: calc(var(--ball-size, 64px) * 0.78);
+    height: calc(var(--ball-size, 64px) * 0.78);
+  }
 }
+
 
 body[data-theme="forest"] {
   --bg-deep: #06140c;
