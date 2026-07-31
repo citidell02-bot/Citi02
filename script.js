@@ -73,7 +73,7 @@
       id: "numbers",
       name: "Penalty Kick",
       cost: 20,
-      desc: "2D football spot-kick — aim, time your power, beat the keeper.",
+      desc: "Hard 2D spot-kick — tight power window, sharp keeper.",
     },
     {
       id: "dash",
@@ -1964,12 +1964,11 @@
 
     const hint = document.createElement("p");
     hint.className = "pk-hint";
-    hint.textContent = "Aim over the goal · watch the power bar · click / tap to shoot";
-
+    hint.textContent = "Hard mode · nail the power sweet spot · beat the big keeper";
     root.append(hud, powerBar, canvas, overlay, startBtn, hint);
     els.gameStage.appendChild(root);
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-pk");
-    els.gameStatus.textContent = "Penalty Kick — 5 spot kicks. Aim and time your power.";
+    els.gameStatus.textContent = "Penalty Kick — harder keeper. Time power carefully across 5 kicks.";
 
     function playKickSfx() {
       const actx = getAudioContext();
@@ -2045,7 +2044,7 @@
       scoreEl.textContent = `${goals}–${saves + misses}`;
       powerLabel.textContent = `Power ${Math.round(power * 100)}%`;
       powerFill.style.width = `${Math.round(power * 100)}%`;
-      powerFill.classList.toggle("is-sweet", power >= 0.45 && power <= 0.78);
+      powerFill.classList.toggle("is-sweet", power >= 0.52 && power <= 0.68);
     }
 
     function resetBallAndKeeper() {
@@ -2089,12 +2088,12 @@
     }
 
     function keeperBox() {
-      const lean = keeper.diving ? keeper.diveX * 0.15 : 0;
+      const lean = keeper.diving ? keeper.diveX * 0.22 : 0;
       return {
         x: keeper.x - keeper.w / 2 + lean,
         y: keeper.y - keeper.h,
-        w: keeper.w + Math.abs(lean) * 0.4,
-        h: keeper.h * (keeper.diving ? 0.72 : 1),
+        w: keeper.w + Math.abs(lean) * 0.55 + (keeper.diving ? 10 : 0),
+        h: keeper.h * (keeper.diving ? 0.82 : 1),
       };
     }
 
@@ -2136,10 +2135,10 @@
       const box = keeperBox();
       const saved =
         hit &&
-        ball.x > box.x - BALL_R * 0.4 &&
-        ball.x < box.x + box.w + BALL_R * 0.4 &&
-        ball.y > box.y - BALL_R * 0.3 &&
-        ball.y < box.y + box.h + BALL_R * 0.2;
+        ball.x > box.x - BALL_R * 0.7 &&
+        ball.x < box.x + box.w + BALL_R * 0.7 &&
+        ball.y > box.y - BALL_R * 0.5 &&
+        ball.y < box.y + box.h + BALL_R * 0.35;
 
       if (!hit) {
         misses += 1;
@@ -2165,36 +2164,37 @@
 
     function shoot() {
       if (phase !== "ready") return;
-      // slight aim wobble if power is too low/high
-      let wobble = 0;
-      if (power < 0.35) wobble = 28 + (0.35 - power) * 60;
-      else if (power > 0.88) wobble = 18 + (power - 0.88) * 90;
-      else if (power < 0.45 || power > 0.8) wobble = 10;
+      // Aim wobble — narrow sweet spot; corners still need clean power
+      let wobble = 6 + kickIndex * 1.5;
+      if (power < 0.42) wobble = 34 + (0.42 - power) * 80;
+      else if (power > 0.82) wobble = 26 + (power - 0.82) * 110;
+      else if (power < 0.52 || power > 0.68) wobble = 16 + kickIndex * 2;
       const tx = aimX + (Math.random() * 2 - 1) * wobble;
-      const ty = aimY + (Math.random() * 2 - 1) * wobble * 0.55;
-      // underpowered may fall short (below crossbar area / hit ground early conceptually)
-      const shortfall = power < 0.28 ? 40 + (0.28 - power) * 120 : 0;
+      const ty = aimY + (Math.random() * 2 - 1) * wobble * 0.6;
+      // underpowered may fall short
+      const shortfall = power < 0.35 ? 48 + (0.35 - power) * 140 : 0;
 
       ball.tx = tx;
       ball.ty = ty + shortfall;
       ball.t = 0;
-      ball.dur = Math.max(0.38, 0.72 - power * 0.28);
+      ball.dur = Math.max(0.42, 0.78 - power * 0.26);
       ball.spinning = (tx - BALL_HOME.x) * 0.02;
       phase = "flight";
       startBtn.hidden = true;
       playKickSfx();
 
-      // Keeper dive: bias toward ball with randomness; harder later
-      const skill = 0.42 + kickIndex * 0.09;
+      // Keeper dive: strong tracking, faster reaction, more reach each kick
+      const skill = Math.min(0.92, 0.58 + kickIndex * 0.1);
       const track = Math.random() < skill;
-      const diveTargetX = track ? tx : GOAL.x + 40 + Math.random() * (GOAL.w - 80);
+      const diveTargetX = track
+        ? tx + (Math.random() * 2 - 1) * (18 - kickIndex * 2)
+        : GOAL.x + 40 + Math.random() * (GOAL.w - 80);
       const diveTargetY = track
-        ? Math.min(GOAL.y + GOAL.h - 10, Math.max(GOAL.y + 40, ty + 10))
+        ? Math.min(GOAL.y + GOAL.h - 10, Math.max(GOAL.y + 36, ty + (Math.random() * 2 - 1) * 8))
         : GOAL.y + 55 + Math.random() * 70;
       keeper.diveX = diveTargetX - keeper.homeX;
       keeper.diveY = diveTargetY - keeper.homeY;
-      // clamp dive reach
-      const maxReach = 158 + kickIndex * 9;
+      const maxReach = 185 + kickIndex * 14;
       const reach = Math.hypot(keeper.diveX, keeper.diveY) || 1;
       if (reach > maxReach) {
         keeper.diveX *= maxReach / reach;
@@ -2202,8 +2202,7 @@
       }
       keeper.diving = true;
       keeper.t = 0;
-      // Arrive ahead of the ball (faster reaction)
-      keeper.diveDur = Math.max(0.22, ball.dur * 0.7);
+      keeper.diveDur = Math.max(0.18, ball.dur * 0.55);
     }
 
     function drawPitch() {
@@ -2276,38 +2275,42 @@
       const box = keeperBox();
       const cx = box.x + box.w / 2;
       const top = box.y;
+      const headR = Math.max(12, box.w * 0.22);
+      const gloveR = Math.max(9, box.w * 0.16);
+      const bodyTop = top + headR * 1.35;
+      const bodyH = box.h * 0.42;
       // legs / dive stretch
       ctx2d.strokeStyle = "#1a1a22";
-      ctx2d.lineWidth = 4;
+      ctx2d.lineWidth = 6;
       ctx2d.lineCap = "round";
       if (keeper.diving) {
         ctx2d.beginPath();
-        ctx2d.moveTo(cx - 10, top + box.h * 0.55);
-        ctx2d.lineTo(cx - 22 - keeper.diveX * 0.05, top + box.h + 4);
-        ctx2d.moveTo(cx + 10, top + box.h * 0.55);
-        ctx2d.lineTo(cx + 22 - keeper.diveX * 0.04, top + box.h + 2);
+        ctx2d.moveTo(cx - 14, top + box.h * 0.55);
+        ctx2d.lineTo(cx - 34 - keeper.diveX * 0.05, top + box.h + 6);
+        ctx2d.moveTo(cx + 14, top + box.h * 0.55);
+        ctx2d.lineTo(cx + 34 - keeper.diveX * 0.04, top + box.h + 4);
         ctx2d.stroke();
       } else {
         ctx2d.beginPath();
-        ctx2d.moveTo(cx - 6, top + 34);
-        ctx2d.lineTo(cx - 8, top + box.h);
-        ctx2d.moveTo(cx + 6, top + 34);
-        ctx2d.lineTo(cx + 8, top + box.h);
+        ctx2d.moveTo(cx - 10, bodyTop + bodyH * 0.75);
+        ctx2d.lineTo(cx - 12, top + box.h);
+        ctx2d.moveTo(cx + 10, bodyTop + bodyH * 0.75);
+        ctx2d.lineTo(cx + 12, top + box.h);
         ctx2d.stroke();
       }
       // body
       ctx2d.fillStyle = "#f0c419";
-      ctx2d.fillRect(box.x + 4, top + 14, box.w - 8, 28);
+      ctx2d.fillRect(box.x + 6, bodyTop, box.w - 12, bodyH);
       // gloves
       ctx2d.fillStyle = "#111";
       ctx2d.beginPath();
-      ctx2d.arc(box.x + 2, top + 22, 7, 0, Math.PI * 2);
-      ctx2d.arc(box.x + box.w - 2, top + 22, 7, 0, Math.PI * 2);
+      ctx2d.arc(box.x + 2, bodyTop + bodyH * 0.35, gloveR, 0, Math.PI * 2);
+      ctx2d.arc(box.x + box.w - 2, bodyTop + bodyH * 0.35, gloveR, 0, Math.PI * 2);
       ctx2d.fill();
       // head
       ctx2d.fillStyle = "#e8b896";
       ctx2d.beginPath();
-      ctx2d.arc(cx, top + 8, 9, 0, Math.PI * 2);
+      ctx2d.arc(cx, top + headR * 0.85, headR, 0, Math.PI * 2);
       ctx2d.fill();
     }
 
@@ -2385,7 +2388,7 @@
 
     function step(dt) {
       if (phase === "ready") {
-        power += powerDir * dt * 0.85;
+        power += powerDir * dt * 1.35;
         if (power >= 1) {
           power = 1;
           powerDir = -1;
