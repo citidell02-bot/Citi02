@@ -50,7 +50,7 @@
     },
     {
       id: "goldrush",
-      name: "Sky Runway",
+      name: "Sonic Theme",
       cost: 40,
       desc: "Speed-zone blue skies, green hills, rings, and checkered loops.",
       swatch: "linear-gradient(90deg, #1a9fff, #3dff6a 50%, #f2be37)",
