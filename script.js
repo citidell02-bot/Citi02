@@ -67,7 +67,7 @@
       id: "memory",
       name: "Funk Night",
       cost: 25,
-      desc: "Hit arrow notes on beat in a night rhythm battle.",
+      desc: "FNF-style arrow battle with holds, combos, and stage flair.",
     },
     {
       id: "numbers",
@@ -1261,21 +1261,39 @@
       W: "up",
       D: "right",
     };
-    const BPM = 140;
+    const BPM = 150;
     const BEAT_MS = 60000 / BPM;
-    const SCROLL_BEATS = 3.2;
-    const HIT_WINDOW = { sick: 70, good: 120, bad: 170 };
-    const SONG_BEATS = 48;
+    const SCROLL_BEATS = 3.4;
+    const HIT_WINDOW = { sick: 65, good: 115, bad: 165 };
+    const COUNTDOWN_BEATS = 4;
+    const SONG_BEATS = 64;
 
     const chart = [];
-    for (let beat = 4; beat < SONG_BEATS; beat += 1) {
-      if (beat % 8 === 0) {
-        chart.push({ beat, dir: DIRS[beat % 4] });
-        chart.push({ beat: beat + 0.5, dir: DIRS[(beat + 2) % 4] });
-      } else if (beat % 2 === 0) {
-        chart.push({ beat, dir: DIRS[(beat / 2) % 4] });
-      } else if (beat % 3 === 0) {
-        chart.push({ beat, dir: DIRS[(beat + 1) % 4] });
+    const pushNote = (beat, dir, holdBeats = 0) => {
+      chart.push({ beat, dir, holdBeats });
+    };
+    for (let beat = 0; beat < SONG_BEATS; beat += 1) {
+      const section = Math.floor(beat / 16);
+      if (section === 0) {
+        if (beat % 2 === 0) pushNote(beat, DIRS[(beat / 2) % 4]);
+        if (beat % 8 === 4) pushNote(beat + 0.5, DIRS[(beat + 1) % 4]);
+      } else if (section === 1) {
+        if (beat % 2 === 0) pushNote(beat, DIRS[beat % 4]);
+        if (beat % 4 === 0) pushNote(beat + 0.5, DIRS[(beat + 2) % 4], 0.75);
+        if (beat % 8 === 6) pushNote(beat + 0.25, DIRS[(beat + 3) % 4]);
+      } else if (section === 2) {
+        pushNote(beat, DIRS[beat % 4]);
+        if (beat % 2 === 1) pushNote(beat + 0.5, DIRS[(beat + 2) % 4]);
+        if (beat % 8 === 0) {
+          pushNote(beat + 0.25, DIRS[(beat + 1) % 4]);
+          pushNote(beat + 0.75, DIRS[(beat + 3) % 4], 1);
+        }
+      } else {
+        if (beat % 2 === 0) {
+          pushNote(beat, DIRS[(beat / 2) % 4]);
+          pushNote(beat + 0.5, DIRS[(beat / 2 + 2) % 4]);
+        }
+        if (beat % 4 === 3) pushNote(beat + 0.25, DIRS[(beat + 1) % 4]);
       }
     }
 
@@ -1289,9 +1307,35 @@
     let hits = { sick: 0, good: 0, bad: 0, miss: 0 };
     let rafId = 0;
     let lastBeat = -1;
+    let countdownDone = false;
 
     const root = document.createElement("div");
     root.className = "funk-game";
+
+    const stage = document.createElement("div");
+    stage.className = "funk-stage";
+    stage.innerHTML = `
+      <div class="funk-stage-glow"></div>
+      <div class="funk-crowd"></div>
+      <div class="funk-dancer funk-dancer-left" aria-hidden="true">
+        <span class="funk-dancer-head"></span>
+        <span class="funk-dancer-body"></span>
+        <span class="funk-dancer-legs"></span>
+      </div>
+      <div class="funk-dancer funk-dancer-right" aria-hidden="true">
+        <span class="funk-dancer-head"></span>
+        <span class="funk-dancer-body"></span>
+        <span class="funk-dancer-legs"></span>
+      </div>
+      <div class="funk-stage-floor"></div>
+    `;
+
+    const trackMeta = document.createElement("div");
+    trackMeta.className = "funk-track-meta";
+    trackMeta.innerHTML = `
+      <div class="funk-track-title">Break Beat Rumble</div>
+      <div class="funk-track-sub">150 BPM · Arcade Mix</div>
+    `;
 
     const hud = document.createElement("div");
     hud.className = "funk-hud";
@@ -1299,18 +1343,43 @@
     scoreEl.className = "funk-score";
     const comboEl = document.createElement("div");
     comboEl.className = "funk-combo";
-    const judgeEl = document.createElement("div");
-    judgeEl.className = "funk-judge";
-    hud.append(scoreEl, comboEl, judgeEl);
+    const accEl = document.createElement("div");
+    accEl.className = "funk-acc";
+    hud.append(scoreEl, comboEl, accEl);
+
+    const statsRow = document.createElement("div");
+    statsRow.className = "funk-stats";
+    statsRow.innerHTML = `
+      <span data-stat="sick">SICK 0</span>
+      <span data-stat="good">GOOD 0</span>
+      <span data-stat="bad">BAD 0</span>
+      <span data-stat="miss">MISS 0</span>
+    `;
 
     const healthWrap = document.createElement("div");
     healthWrap.className = "funk-health";
-    const healthFill = document.createElement("div");
-    healthFill.className = "funk-health-fill";
-    healthWrap.appendChild(healthFill);
+    healthWrap.innerHTML = `
+      <span class="funk-health-label funk-health-enemy">RIVAL</span>
+      <div class="funk-health-track"><div class="funk-health-fill"></div></div>
+      <span class="funk-health-label funk-health-you">YOU</span>
+    `;
+    const healthFill = healthWrap.querySelector(".funk-health-fill");
 
+    const progressWrap = document.createElement("div");
+    progressWrap.className = "funk-progress";
+    const progressFill = document.createElement("div");
+    progressFill.className = "funk-progress-fill";
+    progressWrap.appendChild(progressFill);
+
+    const boardWrap = document.createElement("div");
+    boardWrap.className = "funk-board-wrap";
     const board = document.createElement("div");
     board.className = "funk-board";
+    const judgeEl = document.createElement("div");
+    judgeEl.className = "funk-judge";
+    const countdownEl = document.createElement("div");
+    countdownEl.className = "funk-countdown";
+    boardWrap.append(board, judgeEl, countdownEl);
 
     const receptors = {};
     const lanes = {};
@@ -1323,7 +1392,7 @@
       receptor.dataset.silent = "1";
       receptor.dataset.dir = dir;
       receptor.setAttribute("aria-label", dir);
-      receptor.textContent = ARROWS[dir];
+      receptor.innerHTML = `<span class="funk-receptor-glow"></span><span class="funk-receptor-icon">${ARROWS[dir]}</span>`;
       receptor.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         tryHit(dir);
@@ -1334,6 +1403,10 @@
       lanes[dir] = lane;
     });
 
+    const results = document.createElement("div");
+    results.className = "funk-results";
+    results.hidden = true;
+
     const startBtn = document.createElement("button");
     startBtn.type = "button";
     startBtn.className = "btn btn-primary funk-start";
@@ -1342,43 +1415,107 @@
 
     const hint = document.createElement("p");
     hint.className = "funk-hint";
-    hint.textContent = "Keys: ←↓↑→ or A S W D · click receptors";
+    hint.textContent = "Keys: ←↓↑→ or A S W D · hold through long notes · click receptors";
 
-    root.append(hud, healthWrap, board, startBtn, hint);
+    root.append(stage, trackMeta, hud, statsRow, healthWrap, progressWrap, boardWrap, results, startBtn, hint);
     els.gameStage.appendChild(root);
-    els.gameStatus.textContent = "Hit the arrows when they reach the receptors.";
+    els.gameStatus.textContent = "Hit arrows on beat. Keep health above zero to clear the track.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-funk");
 
     const noteEls = chart.map((note) => {
       const el = document.createElement("div");
-      el.className = `funk-note funk-note-${note.dir}`;
-      el.textContent = ARROWS[note.dir];
+      el.className = `funk-note funk-note-${note.dir}${note.holdBeats > 0 ? " is-hold" : ""}`;
+      el.innerHTML = `
+        <span class="funk-note-head">${ARROWS[note.dir]}</span>
+        ${note.holdBeats > 0 ? '<span class="funk-note-tail"></span>' : ""}
+      `;
       el.hidden = true;
+      if (note.holdBeats > 0) {
+        const tail = el.querySelector(".funk-note-tail");
+        const holdPx = Math.max(36, note.holdBeats * 42);
+        tail.style.height = `${holdPx}px`;
+      }
       lanes[note.dir].appendChild(el);
       return {
         ...note,
         el,
         hit: false,
         missed: false,
-        time: note.beat * BEAT_MS,
+        holding: false,
+        holdDone: false,
+        time: (note.beat + COUNTDOWN_BEATS) * BEAT_MS,
+        holdEnd: (note.beat + COUNTDOWN_BEATS + note.holdBeats) * BEAT_MS,
       };
     });
 
-    function updateHud(judgeText = "") {
-      scoreEl.textContent = `Score ${score}`;
-      comboEl.textContent = combo > 0 ? `${combo} combo` : "";
-      judgeEl.textContent = judgeText;
+    function accuracyPct() {
+      const total = hits.sick + hits.good + hits.bad + hits.miss;
+      if (!total) return 100;
+      return Math.round(((hits.sick + hits.good * 0.75 + hits.bad * 0.35) / total) * 100);
+    }
+
+    function gradeFor(acc, cleared) {
+      if (!cleared) return "F";
+      if (acc >= 97 && hits.miss === 0) return "S";
+      if (acc >= 90) return "A";
+      if (acc >= 80) return "B";
+      if (acc >= 70) return "C";
+      return "D";
+    }
+
+    function updateHud(judgeText) {
+      scoreEl.textContent = `Score ${score.toLocaleString()}`;
+      comboEl.textContent = combo > 1 ? `${combo} COMBO` : combo === 1 ? "COMBO" : "";
+      comboEl.classList.toggle("is-hot", combo >= 10);
+      accEl.textContent = `${accuracyPct()}%`;
       healthFill.style.width = `${Math.max(0, Math.min(100, health))}%`;
       healthWrap.classList.toggle("is-low", health < 30);
+      statsRow.querySelector('[data-stat="sick"]').textContent = `SICK ${hits.sick}`;
+      statsRow.querySelector('[data-stat="good"]').textContent = `GOOD ${hits.good}`;
+      statsRow.querySelector('[data-stat="bad"]').textContent = `BAD ${hits.bad}`;
+      statsRow.querySelector('[data-stat="miss"]').textContent = `MISS ${hits.miss}`;
+      if (judgeText !== undefined) {
+        judgeEl.textContent = judgeText;
+        judgeEl.className = `funk-judge${judgeText ? ` is-${String(judgeText).toLowerCase()}` : ""}`;
+        if (judgeText) {
+          judgeEl.classList.remove("is-pop");
+          void judgeEl.offsetWidth;
+          judgeEl.classList.add("is-pop");
+        }
+      }
+    }
+
+    function spawnSplash(dir, quality) {
+      const splash = document.createElement("span");
+      splash.className = `funk-splash funk-splash-${dir} is-${quality || "miss"}`;
+      lanes[dir].appendChild(splash);
+      setTimeout(() => splash.remove(), 320);
     }
 
     function playHitTone(quality) {
-      const freqs = { sick: 880, good: 700, bad: 480, miss: 180 };
-      playToneNotes([{ freq: freqs[quality] || 400, start: 0, dur: 0.07 }], "square", quality === "miss" ? 0.06 : 0.09);
+      if (quality === "sick") {
+        playToneNotes([
+          { freq: 880, start: 0, dur: 0.05 },
+          { freq: 1320, start: 0.04, dur: 0.08 },
+        ], "square", 0.09);
+      } else if (quality === "good") {
+        playToneNotes([{ freq: 700, start: 0, dur: 0.07 }], "square", 0.08);
+      } else if (quality === "bad") {
+        playToneNotes([{ freq: 420, start: 0, dur: 0.08 }], "triangle", 0.07);
+      } else {
+        playToneNotes([{ freq: 140, start: 0, dur: 0.12 }], "sawtooth", 0.05);
+      }
     }
 
-    function playBeatTick() {
-      playToneNotes([{ freq: 220, start: 0, dur: 0.04 }], "triangle", 0.05);
+    function playBeatTick(beat) {
+      if (beat % 4 === 0) {
+        playToneNotes([
+          { freq: 110, start: 0, dur: 0.08 },
+          { freq: 330, start: 0.02, dur: 0.05 },
+        ], "triangle", 0.06);
+      } else if (beat % 2 === 0) {
+        playToneNotes([{ freq: 180, start: 0, dur: 0.04 }], "triangle", 0.045);
+      }
     }
 
     function judgeHit(delta) {
@@ -1389,38 +1526,45 @@
       return null;
     }
 
-    function applyJudge(quality) {
+    function applyJudge(quality, dir) {
       if (quality === "sick") {
-        score += 350;
+        score += 350 + Math.min(combo, 25) * 8;
         combo += 1;
-        health = Math.min(100, health + 4);
+        health = Math.min(100, health + 5);
         hits.sick += 1;
       } else if (quality === "good") {
-        score += 200;
+        score += 200 + Math.min(combo, 15) * 4;
         combo += 1;
         health = Math.min(100, health + 2);
         hits.good += 1;
       } else if (quality === "bad") {
         score += 50;
         combo = 0;
-        health = Math.max(0, health - 4);
+        health = Math.max(0, health - 5);
         hits.bad += 1;
       } else {
         combo = 0;
-        health = Math.max(0, health - 8);
+        health = Math.max(0, health - 9);
         hits.miss += 1;
+        stage.classList.add("is-shake");
+        setTimeout(() => stage.classList.remove("is-shake"), 180);
       }
       maxCombo = Math.max(maxCombo, combo);
+      if (quality === "sick" && combo > 0 && combo % 10 === 0) {
+        stage.classList.add("is-flash");
+        setTimeout(() => stage.classList.remove("is-flash"), 220);
+      }
       updateHud(quality ? quality.toUpperCase() : "MISS");
       playHitTone(quality || "miss");
+      if (dir) spawnSplash(dir, quality || "miss");
     }
 
     function tryHit(dir) {
-      if (!running || finished) return;
+      if (!running || finished || !countdownDone) return;
       const now = performance.now() - startTime;
       const receptor = receptors[dir];
       receptor.classList.add("is-pressed");
-      setTimeout(() => receptor.classList.remove("is-pressed"), 80);
+      setTimeout(() => receptor.classList.remove("is-pressed"), 90);
 
       let best = null;
       let bestDelta = Infinity;
@@ -1437,9 +1581,30 @@
       const quality = judgeHit(bestDelta);
       if (!quality) return;
       best.hit = true;
+      best.holding = best.holdBeats > 0;
       best.el.classList.add("is-hit");
-      applyJudge(quality);
+      if (best.holding) best.el.classList.add("is-holding");
+      applyJudge(quality, dir);
       if (health <= 0) endSong(false);
+    }
+
+    function showResults(cleared) {
+      const acc = accuracyPct();
+      const grade = gradeFor(acc, cleared);
+      results.hidden = false;
+      results.innerHTML = `
+        <div class="funk-results-grade is-${grade.toLowerCase()}">${grade}</div>
+        <div class="funk-results-title">${cleared ? "Track Cleared!" : "Health Drained"}</div>
+        <div class="funk-results-grid">
+          <div><span>Score</span><strong>${score.toLocaleString()}</strong></div>
+          <div><span>Accuracy</span><strong>${acc}%</strong></div>
+          <div><span>Max Combo</span><strong>${maxCombo}</strong></div>
+          <div><span>Sick</span><strong>${hits.sick}</strong></div>
+          <div><span>Good</span><strong>${hits.good}</strong></div>
+          <div><span>Bad</span><strong>${hits.bad}</strong></div>
+          <div><span>Miss</span><strong>${hits.miss}</strong></div>
+        </div>
+      `;
     }
 
     function endSong(cleared) {
@@ -1447,55 +1612,95 @@
       finished = true;
       running = false;
       cancelAnimationFrame(rafId);
-      const total = hits.sick + hits.good + hits.bad + hits.miss;
-      const accuracy = total
-        ? Math.round(((hits.sick + hits.good * 0.75 + hits.bad * 0.4) / total) * 100)
-        : 0;
+      const acc = accuracyPct();
       els.gameStatus.textContent = cleared
-        ? `Track cleared! Score ${score} · ${accuracy}% · Max combo ${maxCombo}`
-        : `Drained out… Score ${score} · ${accuracy}% · Max combo ${maxCombo}`;
+        ? `Cleared Break Beat Rumble · ${acc}% · Grade ${gradeFor(acc, true)}`
+        : `Failed Break Beat Rumble · ${acc}% · Grade F`;
       startBtn.hidden = false;
       startBtn.textContent = "Play Again";
       updateHud(cleared ? "CLEAR" : "FAIL");
+      showResults(cleared);
+      progressFill.style.width = "100%";
     }
 
     function frame(now) {
       if (!running) return;
       const t = now - startTime;
-      const travelPx = board.clientHeight - 67;
+      const travelPx = board.clientHeight - 70;
+      const songStart = COUNTDOWN_BEATS * BEAT_MS;
+      const songDur = SONG_BEATS * BEAT_MS;
+
+      if (t < songStart) {
+        const remain = Math.ceil((songStart - t) / BEAT_MS);
+        countdownEl.hidden = false;
+        countdownEl.textContent = remain > 0 ? String(remain) : "GO";
+        countdownDone = false;
+      } else if (!countdownDone) {
+        countdownDone = true;
+        countdownEl.hidden = true;
+        updateHud("GO");
+      }
+
+      const progress = Math.max(0, Math.min(1, (t - songStart) / songDur));
+      progressFill.style.width = `${progress * 100}%`;
 
       noteEls.forEach((note) => {
-        if (note.hit) {
+        if (note.hit && !note.holding) {
           note.el.hidden = true;
           return;
         }
         const appear = note.time - SCROLL_BEATS * BEAT_MS;
-        const progress = (t - appear) / (SCROLL_BEATS * BEAT_MS);
-        if (progress < 0 || progress > 1.25) {
+        const progressNote = (t - appear) / (SCROLL_BEATS * BEAT_MS);
+        if (progressNote < 0 || (progressNote > 1.35 && !note.holding)) {
           note.el.hidden = true;
         } else {
           note.el.hidden = false;
-          const y = progress * travelPx;
+          const y = Math.min(progressNote, 1) * travelPx;
           note.el.style.transform = `translateY(${y}px)`;
         }
+
+        if (note.holding && note.hit && !note.holdDone) {
+          if (t >= note.holdEnd) {
+            note.holding = false;
+            note.holdDone = true;
+            note.el.classList.remove("is-holding");
+            note.el.hidden = true;
+            score += 120;
+            health = Math.min(100, health + 2);
+            updateHud("HOLD");
+          } else if (
+            pressedDirs.size > 0 &&
+            !pressedDirs.has(note.dir) &&
+            t > note.time + HIT_WINDOW.good
+          ) {
+            // Only break holds when keyboard input is active and the lane key was released early.
+            note.holding = false;
+            note.holdDone = true;
+            note.el.classList.remove("is-holding");
+            applyJudge(null, note.dir);
+          }
+        }
+
         if (!note.missed && !note.hit && t - note.time > HIT_WINDOW.bad) {
           note.missed = true;
           note.el.classList.add("is-miss");
-          applyJudge(null);
-          if (health <= 0) {
-            endSong(false);
-          }
+          applyJudge(null, note.dir);
+          if (health <= 0) endSong(false);
         }
       });
 
       const beat = Math.floor(t / BEAT_MS);
-      if (beat !== lastBeat && beat >= 0 && beat < SONG_BEATS) {
+      if (beat !== lastBeat && beat >= 0 && beat < COUNTDOWN_BEATS + SONG_BEATS) {
         lastBeat = beat;
-        if (beat % 2 === 0) playBeatTick();
+        playBeatTick(beat);
+        stage.classList.toggle("is-beat", beat % 2 === 0);
         board.classList.toggle("is-beat", beat % 2 === 0);
+        root.querySelectorAll(".funk-dancer").forEach((dancer, i) => {
+          dancer.classList.toggle("is-step", (beat + i) % 2 === 0);
+        });
       }
 
-      if (t > (SONG_BEATS + 2) * BEAT_MS) {
+      if (t > songStart + songDur + BEAT_MS * 1.5) {
         endSong(true);
         return;
       }
@@ -1503,12 +1708,16 @@
       rafId = requestAnimationFrame(frame);
     }
 
+    const pressedDirs = new Set();
+
     function startTrack() {
       noteEls.forEach((note) => {
         note.hit = false;
         note.missed = false;
+        note.holding = false;
+        note.holdDone = false;
         note.el.hidden = true;
-        note.el.classList.remove("is-hit", "is-miss");
+        note.el.classList.remove("is-hit", "is-miss", "is-holding");
         note.el.style.transform = "translateY(0)";
       });
       score = 0;
@@ -1518,11 +1727,18 @@
       hits = { sick: 0, good: 0, bad: 0, miss: 0 };
       finished = false;
       running = true;
+      countdownDone = false;
       lastBeat = -1;
+      pressedDirs.clear();
+      results.hidden = true;
+      results.innerHTML = "";
       startBtn.hidden = true;
-      startTime = performance.now() + 400;
-      updateHud("GET READY");
-      els.gameStatus.textContent = "Keep the beat — don't drop the combo!";
+      countdownEl.hidden = false;
+      countdownEl.textContent = "4";
+      progressFill.style.width = "0%";
+      startTime = performance.now();
+      updateHud("");
+      els.gameStatus.textContent = "Countdown… then keep the beat!";
       getAudioContext()?.resume?.();
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(frame);
@@ -1532,18 +1748,30 @@
       const dir = KEY_MAP[e.key];
       if (!dir) return;
       e.preventDefault();
+      if (e.repeat) {
+        pressedDirs.add(dir);
+        return;
+      }
+      pressedDirs.add(dir);
       tryHit(dir);
+    };
+    const onKeyUp = (e) => {
+      const dir = KEY_MAP[e.key];
+      if (!dir) return;
+      pressedDirs.delete(dir);
     };
 
     startBtn.addEventListener("click", startTrack);
     document.addEventListener("keydown", onKeyDown);
-    updateHud();
+    document.addEventListener("keyup", onKeyUp);
+    updateHud("");
 
     gameCleanup = () => {
       running = false;
       finished = true;
       cancelAnimationFrame(rafId);
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keyup", onKeyUp);
       els.gameModal.querySelector(".game-modal-card")?.classList.remove("is-funk");
     };
   }
