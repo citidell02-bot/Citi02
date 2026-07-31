@@ -75,6 +75,12 @@
       cost: 20,
       desc: "Hit 1–9 in order as fast as you can.",
     },
+    {
+      id: "dash",
+      name: "Cube Rush",
+      cost: 30,
+      desc: "Geometry Dash-style auto-runner — jump spikes, clear the track.",
+    },
   ];
 
   const els = {
@@ -1429,6 +1435,7 @@
     if (id === "reaction") startReactionGame();
     else if (id === "memory") startFunkGame();
     else if (id === "numbers") startNumberGame();
+    else if (id === "dash") startDashGame();
   }
 
   function startReactionGame() {
@@ -1589,11 +1596,11 @@
 
     const hint = document.createElement("p");
     hint.className = "funk-hint";
-    hint.textContent = "←↓↑→ or A S W D";
+    hint.textContent = "←↓↑→ or A S W D · music plays when you press Start";
 
     root.append(hud, healthWrap, boardWrap, results, startBtn, hint);
     els.gameStage.appendChild(root);
-    els.gameStatus.textContent = "Funk Night — hit arrows when they reach the bottom.";
+    els.gameStatus.textContent = "Funk Night — music on Start; hit arrows on the beat.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-funk");
 
     const noteEls = chart.map((note) => {
@@ -1910,6 +1917,584 @@
 
     els.gameStage.appendChild(grid);
     gameCleanup = null;
+  }
+
+  // Geometry Dash-style auto-scroller for breaks
+  function startDashGame() {
+    const W = 640;
+    const H = 320;
+    const GROUND_Y = 250;
+    const CUBE = 28;
+    const SPEED = 280;
+    const GRAVITY = 2200;
+    const JUMP_V = -720;
+    const LEVEL_LEN = 4200;
+
+    // x positions relative to level start; types: spike | block | pad
+    const hazards = [
+      { type: "spike", x: 520, w: 26, h: 26 },
+      { type: "spike", x: 700, w: 26, h: 26 },
+      { type: "block", x: 900, w: 40, h: 40 },
+      { type: "spike", x: 980, w: 26, h: 26 },
+      { type: "spike", x: 1180, w: 26, h: 26 },
+      { type: "spike", x: 1220, w: 26, h: 26 },
+      { type: "block", x: 1450, w: 40, h: 40 },
+      { type: "block", x: 1490, w: 40, h: 80 },
+      { type: "spike", x: 1680, w: 26, h: 26 },
+      { type: "spike", x: 1860, w: 26, h: 26 },
+      { type: "block", x: 2050, w: 36, h: 36 },
+      { type: "spike", x: 2140, w: 26, h: 26 },
+      { type: "spike", x: 2320, w: 26, h: 26 },
+      { type: "spike", x: 2360, w: 26, h: 26 },
+      { type: "spike", x: 2400, w: 26, h: 26 },
+      { type: "block", x: 2620, w: 40, h: 40 },
+      { type: "block", x: 2660, w: 40, h: 70 },
+      { type: "spike", x: 2850, w: 26, h: 26 },
+      { type: "spike", x: 3040, w: 26, h: 26 },
+      { type: "block", x: 3220, w: 44, h: 44 },
+      { type: "spike", x: 3320, w: 26, h: 26 },
+      { type: "spike", x: 3500, w: 26, h: 26 },
+      { type: "spike", x: 3540, w: 26, h: 26 },
+      { type: "block", x: 3720, w: 40, h: 40 },
+      { type: "spike", x: 3860, w: 26, h: 26 },
+      { type: "spike", x: 3980, w: 26, h: 26 },
+    ];
+
+    let running = false;
+    let finished = false;
+    let dead = false;
+    let won = false;
+    let rafId = 0;
+    let lastTs = 0;
+    let camX = 0;
+    let attempts = 1;
+    let bestProgress = 0;
+    let xpAwarded = false;
+    let jumpQueued = false;
+
+    const player = {
+      x: 90,
+      y: GROUND_Y - CUBE,
+      vy: 0,
+      onGround: true,
+      rot: 0,
+    };
+
+    const root = document.createElement("div");
+    root.className = "dash-game";
+
+    const hud = document.createElement("div");
+    hud.className = "dash-hud";
+    const attemptEl = document.createElement("span");
+    const progressEl = document.createElement("span");
+    const bestEl = document.createElement("span");
+    hud.append(attemptEl, progressEl, bestEl);
+
+    const bar = document.createElement("div");
+    bar.className = "dash-progress";
+    bar.innerHTML = `<div class="dash-progress-fill"></div>`;
+    const barFill = bar.querySelector(".dash-progress-fill");
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "dash-canvas";
+    canvas.width = W;
+    canvas.height = H;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Cube Rush track");
+    const ctx2d = canvas.getContext("2d");
+
+    const overlay = document.createElement("div");
+    overlay.className = "dash-overlay";
+    overlay.hidden = true;
+
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn btn-primary dash-start";
+    startBtn.dataset.silent = "1";
+    startBtn.textContent = "Start Run";
+
+    const hint = document.createElement("p");
+    hint.className = "dash-hint";
+    hint.textContent = "Space / ↑ / click / tap to jump · avoid spikes · land on blocks";
+
+    root.append(hud, bar, canvas, overlay, startBtn, hint);
+    els.gameStage.appendChild(root);
+    els.gameStatus.textContent = "Cube Rush — jump the spikes and ride the blocks to the end.";
+    els.gameModal.querySelector(".game-modal-card")?.classList.add("is-dash");
+
+    // Lightweight pulse bed
+    let musicToken = 0;
+    function startMusic() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      musicToken += 1;
+      const token = musicToken;
+      actx.resume?.().catch?.(() => {});
+      const t0 = actx.currentTime + 0.05;
+      const beat = 60 / 150;
+      const gain = actx.createGain();
+      gain.gain.value = 0.22;
+      gain.connect(actx.destination);
+      const noiseBuf = createNoiseBuffer(actx, 0.2);
+
+      function beep(type, freq, t, dur, peak, slide = null) {
+        if (token !== musicToken) return;
+        const osc = actx.createOscillator();
+        const g = actx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        if (slide != null) osc.frequency.exponentialRampToValueAtTime(slide, t + dur);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(peak, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(g);
+        g.connect(gain);
+        osc.start(t);
+        osc.stop(t + dur + 0.02);
+      }
+
+      function hat(t) {
+        if (token !== musicToken) return;
+        const src = actx.createBufferSource();
+        src.buffer = noiseBuf;
+        const f = actx.createBiquadFilter();
+        f.type = "highpass";
+        f.frequency.value = 7000;
+        const g = actx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.05, t + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
+        src.connect(f);
+        f.connect(g);
+        g.connect(gain);
+        src.start(t);
+        src.stop(t + 0.05);
+      }
+
+      // ~20s loop schedule (enough for a run)
+      for (let i = 0; i < 64; i += 1) {
+        const t = t0 + i * beat;
+        if (i % 4 === 0) beep("sine", 160, t, 0.12, 0.55, 45);
+        if (i % 4 === 2) {
+          const src = actx.createBufferSource();
+          src.buffer = noiseBuf;
+          const f = actx.createBiquadFilter();
+          f.type = "highpass";
+          f.frequency.value = 1200;
+          const g = actx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.14, t + 0.005);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+          src.connect(f);
+          f.connect(g);
+          g.connect(gain);
+          src.start(t);
+          src.stop(t + 0.12);
+        }
+        hat(t);
+        hat(t + beat * 0.5);
+        if (i % 2 === 0) beep("square", 220 + (i % 8) * 18, t + beat * 0.25, 0.08, 0.04);
+        if (i % 8 === 0) beep("triangle", 330, t, 0.18, 0.05);
+      }
+
+      startMusic._gain = gain;
+    }
+
+    function stopMusic() {
+      musicToken += 1;
+      const g = startMusic._gain;
+      if (g) {
+        try {
+          const now = getAudioContext()?.currentTime || 0;
+          g.gain.cancelScheduledValues(now);
+          g.gain.setTargetAtTime(0.0001, now, 0.04);
+        } catch (_) {
+          /* ignore */
+        }
+        startMusic._gain = null;
+      }
+    }
+
+    function playJumpSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      const t = actx.currentTime + 0.001;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(780, t + 0.08);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+      osc.connect(g);
+      g.connect(actx.destination);
+      osc.start(t);
+      osc.stop(t + 0.1);
+    }
+
+    function playDeathSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      const t = actx.currentTime + 0.001;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(240, t);
+      osc.frequency.exponentialRampToValueAtTime(60, t + 0.22);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.1, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
+      osc.connect(g);
+      g.connect(actx.destination);
+      osc.start(t);
+      osc.stop(t + 0.26);
+    }
+
+    function playWinSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      const t = actx.currentTime + 0.02;
+      [523, 659, 784, 1046].forEach((freq, i) => {
+        const osc = actx.createOscillator();
+        const g = actx.createGain();
+        osc.type = "square";
+        osc.frequency.value = freq;
+        const t0 = t + i * 0.08;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.09, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+        osc.connect(g);
+        g.connect(actx.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.14);
+      });
+    }
+
+    function updateHud() {
+      const pct = Math.max(0, Math.min(100, (camX / LEVEL_LEN) * 100));
+      bestProgress = Math.max(bestProgress, pct);
+      attemptEl.textContent = `Attempt ${attempts}`;
+      progressEl.textContent = `${Math.floor(pct)}%`;
+      bestEl.textContent = `Best ${Math.floor(bestProgress)}%`;
+      barFill.style.width = `${pct}%`;
+    }
+
+    function resetPlayer() {
+      player.x = 90;
+      player.y = GROUND_Y - CUBE;
+      player.vy = 0;
+      player.onGround = true;
+      player.rot = 0;
+      camX = 0;
+      jumpQueued = false;
+      dead = false;
+      won = false;
+      finished = false;
+    }
+
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    function spikeHit(px, py, spike) {
+      // triangle approx via tighter AABB + center check
+      const sx = spike.x;
+      const sy = GROUND_Y - spike.h;
+      const box = { x: sx + 4, y: sy + 6, w: spike.w - 8, h: spike.h - 6 };
+      return rectsOverlap({ x: px, y: py, w: CUBE, h: CUBE }, box);
+    }
+
+    function die() {
+      if (dead || won) return;
+      dead = true;
+      running = false;
+      finished = true;
+      cancelAnimationFrame(rafId);
+      stopMusic();
+      playDeathSfx();
+      attempts += 1;
+      updateHud();
+      els.gameStatus.textContent = `Crashed at ${Math.floor((camX / LEVEL_LEN) * 100)}% — try again.`;
+      overlay.hidden = false;
+      overlay.innerHTML = `
+        <div class="dash-overlay-title">Crashed!</div>
+        <div class="dash-overlay-sub">${Math.floor((camX / LEVEL_LEN) * 100)}% · Attempt ${attempts - 1}</div>
+      `;
+      startBtn.hidden = false;
+      startBtn.textContent = "Retry";
+    }
+
+    function win() {
+      if (won || dead) return;
+      won = true;
+      running = false;
+      finished = true;
+      cancelAnimationFrame(rafId);
+      stopMusic();
+      playWinSfx();
+      camX = LEVEL_LEN;
+      updateHud();
+      els.gameStatus.textContent = `Track cleared in ${attempts} attempt${attempts === 1 ? "" : "s"}!`;
+      overlay.hidden = false;
+      overlay.innerHTML = `
+        <div class="dash-overlay-title">Cleared!</div>
+        <div class="dash-overlay-sub">${attempts} attempt${attempts === 1 ? "" : "s"}</div>
+      `;
+      startBtn.hidden = false;
+      startBtn.textContent = "Play Again";
+      if (!xpAwarded) {
+        xpAwarded = true;
+        addXp(18, "Cube Rush clear");
+      }
+    }
+
+    function tryJump() {
+      if (!running || dead || won) {
+        jumpQueued = true;
+        return;
+      }
+      if (player.onGround) {
+        player.vy = JUMP_V;
+        player.onGround = false;
+        playJumpSfx();
+      }
+    }
+
+    function draw() {
+      // sky
+      const grad = ctx2d.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "#1a1040");
+      grad.addColorStop(0.55, "#2a1460");
+      grad.addColorStop(1, "#120820");
+      ctx2d.fillStyle = grad;
+      ctx2d.fillRect(0, 0, W, H);
+
+      // parallax stripes
+      ctx2d.fillStyle = "rgba(255, 255, 255, 0.04)";
+      for (let i = 0; i < 8; i += 1) {
+        const x = ((i * 90 - camX * 0.25) % (W + 90)) - 40;
+        ctx2d.fillRect(x, 40 + (i % 3) * 28, 50, 10);
+      }
+
+      // ground
+      ctx2d.fillStyle = "#0d1a14";
+      ctx2d.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+      ctx2d.fillStyle = "#3dff9a";
+      ctx2d.fillRect(0, GROUND_Y, W, 3);
+      ctx2d.fillStyle = "rgba(61, 255, 154, 0.15)";
+      const tile = 40;
+      const offset = -((camX % tile) + tile) % tile;
+      for (let x = offset; x < W; x += tile) {
+        ctx2d.fillRect(x, GROUND_Y + 8, 18, 3);
+      }
+
+      // finish line
+      const finishScreen = LEVEL_LEN - camX;
+      if (finishScreen > -40 && finishScreen < W + 40) {
+        ctx2d.fillStyle = "#ffd640";
+        for (let row = 0; row < 8; row += 1) {
+          for (let col = 0; col < 2; col += 1) {
+            if ((row + col) % 2 === 0) {
+              ctx2d.fillRect(finishScreen + col * 14, GROUND_Y - 120 + row * 15, 14, 15);
+            }
+          }
+        }
+        ctx2d.fillStyle = "rgba(255, 214, 64, 0.35)";
+        ctx2d.fillRect(finishScreen, 0, 4, GROUND_Y);
+      }
+
+      // hazards
+      for (let i = 0; i < hazards.length; i += 1) {
+        const hz = hazards[i];
+        const sx = hz.x - camX;
+        if (sx < -60 || sx > W + 60) continue;
+        if (hz.type === "spike") {
+          const y = GROUND_Y;
+          ctx2d.fillStyle = "#ff4d6d";
+          ctx2d.beginPath();
+          ctx2d.moveTo(sx, y);
+          ctx2d.lineTo(sx + hz.w / 2, y - hz.h);
+          ctx2d.lineTo(sx + hz.w, y);
+          ctx2d.closePath();
+          ctx2d.fill();
+          ctx2d.strokeStyle = "rgba(255, 255, 255, 0.25)";
+          ctx2d.stroke();
+        } else if (hz.type === "block") {
+          const y = GROUND_Y - hz.h;
+          ctx2d.fillStyle = "#5adcff";
+          ctx2d.fillRect(sx, y, hz.w, hz.h);
+          ctx2d.fillStyle = "rgba(255, 255, 255, 0.18)";
+          ctx2d.fillRect(sx + 3, y + 3, hz.w - 6, 6);
+          ctx2d.strokeStyle = "rgba(0, 0, 0, 0.35)";
+          ctx2d.strokeRect(sx, y, hz.w, hz.h);
+        }
+      }
+
+      // player cube
+      const px = 120;
+      const py = player.y;
+      ctx2d.save();
+      ctx2d.translate(px + CUBE / 2, py + CUBE / 2);
+      ctx2d.rotate(player.rot);
+      ctx2d.fillStyle = "#ff4d8d";
+      ctx2d.fillRect(-CUBE / 2, -CUBE / 2, CUBE, CUBE);
+      ctx2d.fillStyle = "rgba(255, 255, 255, 0.35)";
+      ctx2d.fillRect(-CUBE / 2 + 4, -CUBE / 2 + 4, 10, 10);
+      ctx2d.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx2d.lineWidth = 2;
+      ctx2d.strokeRect(-CUBE / 2, -CUBE / 2, CUBE, CUBE);
+      ctx2d.restore();
+
+      // vignette-ish edges
+      ctx2d.fillStyle = "rgba(0, 0, 0, 0.18)";
+      ctx2d.fillRect(0, 0, 18, H);
+      ctx2d.fillRect(W - 18, 0, 18, H);
+    }
+
+    function step(dt) {
+      camX += SPEED * dt;
+      player.x = camX + 120;
+
+      if (jumpQueued && player.onGround) {
+        player.vy = JUMP_V;
+        player.onGround = false;
+        jumpQueued = false;
+        playJumpSfx();
+      } else {
+        jumpQueued = false;
+      }
+
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+
+      // ground + block landing
+      let floorY = GROUND_Y;
+      const pBox = { x: player.x, y: player.y, w: CUBE, h: CUBE };
+      for (let i = 0; i < hazards.length; i += 1) {
+        const hz = hazards[i];
+        if (hz.type !== "block") continue;
+        const top = GROUND_Y - hz.h;
+        const block = { x: hz.x, y: top, w: hz.w, h: hz.h };
+        // land on top if falling onto block
+        if (
+          player.vy >= 0 &&
+          pBox.x + 4 < block.x + block.w &&
+          pBox.x + pBox.w - 4 > block.x &&
+          player.y + CUBE >= top &&
+          player.y + CUBE - player.vy * dt <= top + 8
+        ) {
+          floorY = Math.min(floorY, top);
+        }
+        // side crush
+        if (
+          rectsOverlap(
+            { x: pBox.x + 6, y: pBox.y + 4, w: CUBE - 12, h: CUBE - 8 },
+            { x: block.x, y: block.y + 8, w: block.w, h: block.h - 8 }
+          )
+        ) {
+          die();
+          return;
+        }
+      }
+
+      if (player.y + CUBE >= floorY) {
+        player.y = floorY - CUBE;
+        player.vy = 0;
+        player.onGround = true;
+        player.rot = Math.round(player.rot / (Math.PI / 2)) * (Math.PI / 2);
+      } else {
+        player.onGround = false;
+        player.rot += 8 * dt;
+      }
+
+      // spikes
+      for (let i = 0; i < hazards.length; i += 1) {
+        const hz = hazards[i];
+        if (hz.type === "spike" && spikeHit(player.x, player.y, hz)) {
+          die();
+          return;
+        }
+      }
+
+      // fall off (shouldn't happen without gaps, but safety)
+      if (player.y > H + 40) {
+        die();
+        return;
+      }
+
+      if (camX >= LEVEL_LEN) {
+        win();
+        return;
+      }
+
+      updateHud();
+    }
+
+    function frame(ts) {
+      if (!running) return;
+      if (!lastTs) lastTs = ts;
+      let dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+      if (dt > 0.05) dt = 0.05;
+      step(dt);
+      draw();
+      if (running) rafId = requestAnimationFrame(frame);
+    }
+
+    function begin() {
+      resetPlayer();
+      overlay.hidden = true;
+      overlay.innerHTML = "";
+      startBtn.hidden = true;
+      running = true;
+      finished = false;
+      lastTs = 0;
+      updateHud();
+      els.gameStatus.textContent = "Jump!";
+      stopMusic();
+      startMusic();
+      cancelAnimationFrame(rafId);
+      draw();
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function onKey(e) {
+      if (e.key === " " || e.key === "ArrowUp" || e.key === "w" || e.key === "W") {
+        e.preventDefault();
+        if (!running && !finished) return;
+        if (!running && finished) {
+          begin();
+          return;
+        }
+        tryJump();
+      }
+    }
+
+    startBtn.addEventListener("click", begin);
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (!running) {
+        if (!startBtn.hidden) begin();
+        return;
+      }
+      tryJump();
+    });
+    document.addEventListener("keydown", onKey);
+
+    attemptEl.textContent = "Attempt 1";
+    progressEl.textContent = "0%";
+    bestEl.textContent = "Best 0%";
+    draw();
+
+    gameCleanup = () => {
+      running = false;
+      finished = true;
+      cancelAnimationFrame(rafId);
+      stopMusic();
+      document.removeEventListener("keydown", onKey);
+      els.gameModal.querySelector(".game-modal-card")?.classList.remove("is-dash");
+    };
   }
 
   els.questForm.addEventListener("submit", (e) => {
