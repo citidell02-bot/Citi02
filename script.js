@@ -71,9 +71,9 @@
     },
     {
       id: "numbers",
-      name: "Number Rush",
+      name: "Penalty Kick",
       cost: 20,
-      desc: "Hit 1–9 in order as fast as you can.",
+      desc: "2D football spot-kick — aim, time your power, beat the keeper.",
     },
     {
       id: "dash",
@@ -1434,7 +1434,7 @@
 
     if (id === "reaction") startReactionGame();
     else if (id === "memory") startFunkGame();
-    else if (id === "numbers") startNumberGame();
+    else if (id === "numbers") startPenaltyGame();
     else if (id === "dash") startDashGame();
   }
 
@@ -1880,43 +1880,593 @@
     };
   }
 
-  function startNumberGame() {
-    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    for (let i = values.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [values[i], values[j]] = [values[j], values[i]];
+  // 2D football penalty kick simulator (replaces Number Rush; unlock id stays "numbers")
+  function startPenaltyGame() {
+    const W = 640;
+    const H = 400;
+    const KICKS = 5;
+    const GOAL = { x: 120, y: 52, w: 400, h: 150 };
+    const POST = 8;
+    const BALL_R = 11;
+    const BALL_HOME = { x: W / 2, y: H - 58 };
+
+    let phase = "ready"; // ready | flight | result | done
+    let kickIndex = 0;
+    let goals = 0;
+    let saves = 0;
+    let misses = 0;
+    let aimX = GOAL.x + GOAL.w / 2;
+    let aimY = GOAL.y + GOAL.h * 0.45;
+    let power = 0.55;
+    let powerDir = 1;
+    let pointerInside = false;
+    let resultLabel = "";
+    let resultTimer = 0;
+    let xpAwarded = false;
+    let rafId = 0;
+    let lastTs = 0;
+
+    const ball = {
+      x: BALL_HOME.x,
+      y: BALL_HOME.y,
+      tx: BALL_HOME.x,
+      ty: BALL_HOME.y,
+      t: 0,
+      dur: 0.55,
+      spinning: 0,
+    };
+
+    const keeper = {
+      x: GOAL.x + GOAL.w / 2,
+      y: GOAL.y + GOAL.h - 18,
+      homeX: GOAL.x + GOAL.w / 2,
+      homeY: GOAL.y + GOAL.h - 18,
+      diveX: 0,
+      diveY: 0,
+      t: 0,
+      diving: false,
+      w: 34,
+      h: 52,
+    };
+
+    const root = document.createElement("div");
+    root.className = "pk-game";
+
+    const hud = document.createElement("div");
+    hud.className = "pk-hud";
+    const kickEl = document.createElement("span");
+    const scoreEl = document.createElement("span");
+    const powerLabel = document.createElement("span");
+    hud.append(kickEl, scoreEl, powerLabel);
+
+    const powerBar = document.createElement("div");
+    powerBar.className = "pk-power";
+    powerBar.innerHTML = `<div class="pk-power-fill"></div>`;
+    const powerFill = powerBar.querySelector(".pk-power-fill");
+
+    const canvas = document.createElement("canvas");
+    canvas.className = "pk-canvas";
+    canvas.width = W;
+    canvas.height = H;
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", "Penalty kick pitch");
+    const ctx2d = canvas.getContext("2d", { alpha: false });
+
+    const overlay = document.createElement("div");
+    overlay.className = "pk-overlay";
+    overlay.hidden = true;
+
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn btn-primary pk-start";
+    startBtn.dataset.silent = "1";
+    startBtn.textContent = "Take Kick";
+
+    const hint = document.createElement("p");
+    hint.className = "pk-hint";
+    hint.textContent = "Aim over the goal · watch the power bar · click / tap to shoot";
+
+    root.append(hud, powerBar, canvas, overlay, startBtn, hint);
+    els.gameStage.appendChild(root);
+    els.gameModal.querySelector(".game-modal-card")?.classList.add("is-pk");
+    els.gameStatus.textContent = "Penalty Kick — 5 spot kicks. Aim and time your power.";
+
+    function playKickSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      actx.resume?.().catch?.(() => {});
+      const t = actx.currentTime + 0.001;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14);
+      osc.connect(g);
+      g.connect(actx.destination);
+      osc.start(t);
+      osc.stop(t + 0.16);
+      try {
+        const noise = actx.createBufferSource();
+        noise.buffer = createNoiseBuffer(actx, 0.08);
+        const ng = actx.createGain();
+        ng.gain.setValueAtTime(0.0001, t);
+        ng.gain.exponentialRampToValueAtTime(0.06, t + 0.005);
+        ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+        noise.connect(ng);
+        ng.connect(actx.destination);
+        noise.start(t);
+        noise.stop(t + 0.08);
+      } catch (_) {
+        /* ignore */
+      }
     }
 
-    let next = 1;
-    const startedAt = performance.now();
-    const grid = document.createElement("div");
-    grid.className = "number-grid";
-    els.gameStatus.textContent = "Tap numbers in order from 1 to 9.";
+    function playNetSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      const t = actx.currentTime + 0.001;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(880, t + 0.18);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.08, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      osc.connect(g);
+      g.connect(actx.destination);
+      osc.start(t);
+      osc.stop(t + 0.24);
+    }
 
-    values.forEach((value) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "number-btn";
-      btn.textContent = String(value);
-      btn.addEventListener("click", () => {
-        if (value !== next) {
-          els.gameStatus.textContent = `Need ${next} next — keep going.`;
-          return;
+    function playSaveSfx() {
+      const actx = getAudioContext();
+      if (!actx) return;
+      const t = actx.currentTime + 0.001;
+      const osc = actx.createOscillator();
+      const g = actx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(70, t + 0.16);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.07, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      osc.connect(g);
+      g.connect(actx.destination);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    }
+
+    function updateHud() {
+      kickEl.textContent = `Kick ${Math.min(kickIndex + 1, KICKS)} / ${KICKS}`;
+      scoreEl.textContent = `${goals}–${saves + misses}`;
+      powerLabel.textContent = `Power ${Math.round(power * 100)}%`;
+      powerFill.style.width = `${Math.round(power * 100)}%`;
+      powerFill.classList.toggle("is-sweet", power >= 0.45 && power <= 0.78);
+    }
+
+    function resetBallAndKeeper() {
+      ball.x = BALL_HOME.x;
+      ball.y = BALL_HOME.y;
+      ball.tx = BALL_HOME.x;
+      ball.ty = BALL_HOME.y;
+      ball.t = 0;
+      ball.spinning = 0;
+      keeper.x = keeper.homeX;
+      keeper.y = keeper.homeY;
+      keeper.diveX = 0;
+      keeper.diveY = 0;
+      keeper.t = 0;
+      keeper.diving = false;
+      aimX = GOAL.x + GOAL.w / 2;
+      aimY = GOAL.y + GOAL.h * 0.45;
+      power = 0.4 + Math.random() * 0.25;
+      powerDir = Math.random() < 0.5 ? -1 : 1;
+      resultLabel = "";
+      phase = "ready";
+      startBtn.hidden = false;
+      startBtn.textContent = "Shoot";
+      overlay.hidden = true;
+      overlay.innerHTML = "";
+      updateHud();
+      els.gameStatus.textContent = `Kick ${kickIndex + 1} of ${KICKS} — aim and shoot.`;
+    }
+
+    function pointerToCanvas(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * W;
+      const y = ((e.clientY - rect.top) / rect.height) * H;
+      return { x, y };
+    }
+
+    function clampAim(x, y) {
+      aimX = Math.max(GOAL.x + 10, Math.min(GOAL.x + GOAL.w - 10, x));
+      aimY = Math.max(GOAL.y + 12, Math.min(GOAL.y + GOAL.h - 8, y));
+    }
+
+    function keeperBox() {
+      const lean = keeper.diving ? keeper.diveX * 0.15 : 0;
+      return {
+        x: keeper.x - keeper.w / 2 + lean,
+        y: keeper.y - keeper.h,
+        w: keeper.w + Math.abs(lean) * 0.4,
+        h: keeper.h * (keeper.diving ? 0.72 : 1),
+      };
+    }
+
+    function inGoal(x, y) {
+      return (
+        x > GOAL.x + POST &&
+        x < GOAL.x + GOAL.w - POST &&
+        y > GOAL.y + POST &&
+        y < GOAL.y + GOAL.h
+      );
+    }
+
+    function awardMatchXp() {
+      if (xpAwarded) return;
+      xpAwarded = true;
+      let xp = goals * 4;
+      if (goals === KICKS) xp += 8;
+      else if (goals >= 3) xp += 3;
+      if (xp > 0) addXp(xp, `Penalty Kick ${goals}/${KICKS}`);
+    }
+
+    function finishMatch() {
+      phase = "done";
+      awardMatchXp();
+      startBtn.hidden = false;
+      startBtn.textContent = "Rematch";
+      overlay.hidden = false;
+      const verdict =
+        goals === KICKS ? "Perfect!" : goals >= 3 ? "Solid set." : goals >= 1 ? "Keep practicing." : "Tough day.";
+      overlay.innerHTML = `
+        <div class="pk-overlay-title">${verdict}</div>
+        <div class="pk-overlay-sub">${goals} goals · ${saves} saves · ${misses} misses</div>
+      `;
+      els.gameStatus.textContent = `Session over — ${goals}/${KICKS} goals.`;
+    }
+
+    function resolveKick() {
+      const hit = inGoal(ball.x, ball.y);
+      const box = keeperBox();
+      const saved =
+        hit &&
+        ball.x > box.x - BALL_R * 0.4 &&
+        ball.x < box.x + box.w + BALL_R * 0.4 &&
+        ball.y > box.y - BALL_R * 0.3 &&
+        ball.y < box.y + box.h + BALL_R * 0.2;
+
+      if (!hit) {
+        misses += 1;
+        resultLabel = ball.y < GOAL.y ? "OVER!" : "WIDE!";
+        playSaveSfx();
+      } else if (saved) {
+        saves += 1;
+        resultLabel = "SAVED!";
+        playSaveSfx();
+      } else {
+        goals += 1;
+        resultLabel = "GOAL!";
+        playNetSfx();
+      }
+
+      kickIndex += 1;
+      phase = "result";
+      resultTimer = 1.15;
+      startBtn.hidden = true;
+      updateHud();
+      els.gameStatus.textContent = `${resultLabel}  Score ${goals}–${saves + misses}`;
+    }
+
+    function shoot() {
+      if (phase !== "ready") return;
+      // slight aim wobble if power is too low/high
+      let wobble = 0;
+      if (power < 0.35) wobble = 28 + (0.35 - power) * 60;
+      else if (power > 0.88) wobble = 18 + (power - 0.88) * 90;
+      else if (power < 0.45 || power > 0.8) wobble = 10;
+      const tx = aimX + (Math.random() * 2 - 1) * wobble;
+      const ty = aimY + (Math.random() * 2 - 1) * wobble * 0.55;
+      // underpowered may fall short (below crossbar area / hit ground early conceptually)
+      const shortfall = power < 0.28 ? 40 + (0.28 - power) * 120 : 0;
+
+      ball.tx = tx;
+      ball.ty = ty + shortfall;
+      ball.t = 0;
+      ball.dur = Math.max(0.38, 0.72 - power * 0.28);
+      ball.spinning = (tx - BALL_HOME.x) * 0.02;
+      phase = "flight";
+      startBtn.hidden = true;
+      playKickSfx();
+
+      // Keeper dive: bias toward ball with randomness; harder later
+      const skill = 0.35 + kickIndex * 0.08;
+      const track = Math.random() < skill;
+      const diveTargetX = track ? tx : GOAL.x + 40 + Math.random() * (GOAL.w - 80);
+      const diveTargetY = track
+        ? Math.min(GOAL.y + GOAL.h - 10, Math.max(GOAL.y + 40, ty + 10))
+        : GOAL.y + 55 + Math.random() * 70;
+      keeper.diveX = diveTargetX - keeper.homeX;
+      keeper.diveY = diveTargetY - keeper.homeY;
+      // clamp dive reach
+      const maxReach = 150 + kickIndex * 8;
+      const reach = Math.hypot(keeper.diveX, keeper.diveY) || 1;
+      if (reach > maxReach) {
+        keeper.diveX *= maxReach / reach;
+        keeper.diveY *= maxReach / reach;
+      }
+      keeper.diving = true;
+      keeper.t = 0;
+    }
+
+    function drawPitch() {
+      // sky / stands
+      const sky = ctx2d.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, "#6ec8f0");
+      sky.addColorStop(0.42, "#8fd4a8");
+      sky.addColorStop(1, "#2f8f4e");
+      ctx2d.fillStyle = sky;
+      ctx2d.fillRect(0, 0, W, H);
+
+      // crowd blur
+      ctx2d.fillStyle = "rgba(20, 30, 50, 0.25)";
+      ctx2d.fillRect(0, 0, W, 44);
+      for (let i = 0; i < 28; i += 1) {
+        ctx2d.fillStyle = `hsla(${(i * 37) % 360}, 35%, ${40 + (i % 3) * 8}%, 0.35)`;
+        ctx2d.fillRect(8 + i * 23, 8 + (i % 2) * 6, 14, 18);
+      }
+
+      // pitch stripes
+      for (let i = 0; i < 8; i += 1) {
+        ctx2d.fillStyle = i % 2 === 0 ? "#2f9a52" : "#2a8d4a";
+        ctx2d.fillRect(0, 120 + i * 36, W, 36);
+      }
+
+      // penalty box lines
+      ctx2d.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx2d.lineWidth = 2;
+      ctx2d.strokeRect(90, 200, 460, 170);
+      ctx2d.beginPath();
+      ctx2d.arc(W / 2, BALL_HOME.y, 48, Math.PI, 0);
+      ctx2d.stroke();
+      ctx2d.beginPath();
+      ctx2d.arc(BALL_HOME.x, BALL_HOME.y, 3, 0, Math.PI * 2);
+      ctx2d.fillStyle = "#fff";
+      ctx2d.fill();
+
+      // goal mouth shadow
+      ctx2d.fillStyle = "rgba(0,0,0,0.12)";
+      ctx2d.fillRect(GOAL.x, GOAL.y + GOAL.h, GOAL.w, 18);
+    }
+
+    function drawGoal() {
+      // net
+      ctx2d.fillStyle = "rgba(240, 248, 255, 0.18)";
+      ctx2d.fillRect(GOAL.x, GOAL.y, GOAL.w, GOAL.h);
+      ctx2d.strokeStyle = "rgba(255,255,255,0.22)";
+      ctx2d.lineWidth = 1;
+      for (let x = GOAL.x; x <= GOAL.x + GOAL.w; x += 18) {
+        ctx2d.beginPath();
+        ctx2d.moveTo(x, GOAL.y);
+        ctx2d.lineTo(x, GOAL.y + GOAL.h);
+        ctx2d.stroke();
+      }
+      for (let y = GOAL.y; y <= GOAL.y + GOAL.h; y += 16) {
+        ctx2d.beginPath();
+        ctx2d.moveTo(GOAL.x, y);
+        ctx2d.lineTo(GOAL.x + GOAL.w, y);
+        ctx2d.stroke();
+      }
+
+      // posts / crossbar
+      ctx2d.fillStyle = "#f4f7fb";
+      ctx2d.fillRect(GOAL.x - POST / 2, GOAL.y - POST / 2, POST, GOAL.h + POST);
+      ctx2d.fillRect(GOAL.x + GOAL.w - POST / 2, GOAL.y - POST / 2, POST, GOAL.h + POST);
+      ctx2d.fillRect(GOAL.x - POST / 2, GOAL.y - POST / 2, GOAL.w + POST, POST);
+    }
+
+    function drawKeeper() {
+      const box = keeperBox();
+      const cx = box.x + box.w / 2;
+      const top = box.y;
+      // legs / dive stretch
+      ctx2d.strokeStyle = "#1a1a22";
+      ctx2d.lineWidth = 4;
+      ctx2d.lineCap = "round";
+      if (keeper.diving) {
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx - 10, top + box.h * 0.55);
+        ctx2d.lineTo(cx - 22 - keeper.diveX * 0.05, top + box.h + 4);
+        ctx2d.moveTo(cx + 10, top + box.h * 0.55);
+        ctx2d.lineTo(cx + 22 - keeper.diveX * 0.04, top + box.h + 2);
+        ctx2d.stroke();
+      } else {
+        ctx2d.beginPath();
+        ctx2d.moveTo(cx - 6, top + 34);
+        ctx2d.lineTo(cx - 8, top + box.h);
+        ctx2d.moveTo(cx + 6, top + 34);
+        ctx2d.lineTo(cx + 8, top + box.h);
+        ctx2d.stroke();
+      }
+      // body
+      ctx2d.fillStyle = "#f0c419";
+      ctx2d.fillRect(box.x + 4, top + 14, box.w - 8, 28);
+      // gloves
+      ctx2d.fillStyle = "#111";
+      ctx2d.beginPath();
+      ctx2d.arc(box.x + 2, top + 22, 7, 0, Math.PI * 2);
+      ctx2d.arc(box.x + box.w - 2, top + 22, 7, 0, Math.PI * 2);
+      ctx2d.fill();
+      // head
+      ctx2d.fillStyle = "#e8b896";
+      ctx2d.beginPath();
+      ctx2d.arc(cx, top + 8, 9, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+
+    function drawBall() {
+      const scale = phase === "flight" ? 1 - ball.t * 0.35 : 1;
+      const r = BALL_R * scale;
+      ctx2d.save();
+      ctx2d.translate(ball.x, ball.y);
+      ctx2d.rotate(ball.spinning * (phase === "flight" ? ball.t * 8 : 0));
+      ctx2d.fillStyle = "#fff";
+      ctx2d.beginPath();
+      ctx2d.arc(0, 0, r, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.strokeStyle = "#222";
+      ctx2d.lineWidth = 1.2;
+      ctx2d.beginPath();
+      ctx2d.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+      ctx2d.stroke();
+      for (let i = 0; i < 5; i += 1) {
+        const a = (i / 5) * Math.PI * 2;
+        ctx2d.beginPath();
+        ctx2d.moveTo(Math.cos(a) * r * 0.35, Math.sin(a) * r * 0.35);
+        ctx2d.lineTo(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95);
+        ctx2d.stroke();
+      }
+      ctx2d.restore();
+      // shadow
+      ctx2d.fillStyle = "rgba(0,0,0,0.2)";
+      ctx2d.beginPath();
+      ctx2d.ellipse(ball.x, Math.min(H - 40, ball.y + 14), r * 1.1, r * 0.35, 0, 0, Math.PI * 2);
+      ctx2d.fill();
+    }
+
+    function drawAim() {
+      if (phase !== "ready" || !pointerInside) return;
+      ctx2d.strokeStyle = "rgba(255, 230, 80, 0.85)";
+      ctx2d.lineWidth = 2;
+      ctx2d.beginPath();
+      ctx2d.arc(aimX, aimY, 14, 0, Math.PI * 2);
+      ctx2d.moveTo(aimX - 22, aimY);
+      ctx2d.lineTo(aimX + 22, aimY);
+      ctx2d.moveTo(aimX, aimY - 22);
+      ctx2d.lineTo(aimX, aimY + 22);
+      ctx2d.stroke();
+      // shot guide
+      ctx2d.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx2d.setLineDash([6, 6]);
+      ctx2d.beginPath();
+      ctx2d.moveTo(BALL_HOME.x, BALL_HOME.y);
+      ctx2d.lineTo(aimX, aimY);
+      ctx2d.stroke();
+      ctx2d.setLineDash([]);
+    }
+
+    function drawResultBanner() {
+      if (phase !== "result") return;
+      if (!resultLabel) return;
+      ctx2d.fillStyle = "rgba(0,0,0,0.35)";
+      ctx2d.fillRect(0, H / 2 - 36, W, 72);
+      ctx2d.fillStyle =
+        resultLabel === "GOAL!" ? "#7dffb0" : resultLabel === "SAVED!" ? "#ff8f8f" : "#ffd56a";
+      ctx2d.font = "bold 42px 'Trebuchet MS', 'Segoe UI', sans-serif";
+      ctx2d.textAlign = "center";
+      ctx2d.fillText(resultLabel, W / 2, H / 2 + 14);
+    }
+
+    function draw() {
+      drawPitch();
+      drawGoal();
+      drawKeeper();
+      drawAim();
+      drawBall();
+      drawResultBanner();
+    }
+
+    function step(dt) {
+      if (phase === "ready") {
+        power += powerDir * dt * 0.85;
+        if (power >= 1) {
+          power = 1;
+          powerDir = -1;
+        } else if (power <= 0.08) {
+          power = 0.08;
+          powerDir = 1;
         }
-        btn.classList.add("is-done");
-        next += 1;
-        if (next > 9) {
-          const ms = Math.round(performance.now() - startedAt);
-          els.gameStatus.textContent = `Cleared in ${(ms / 1000).toFixed(2)}s!`;
-        } else {
-          els.gameStatus.textContent = `Next: ${next}`;
+        updateHud();
+      } else if (phase === "flight") {
+        ball.t = Math.min(1, ball.t + dt / ball.dur);
+        const ease = 1 - Math.pow(1 - ball.t, 2);
+        const arc = Math.sin(ball.t * Math.PI) * (18 + power * 22);
+        ball.x = BALL_HOME.x + (ball.tx - BALL_HOME.x) * ease;
+        ball.y = BALL_HOME.y + (ball.ty - BALL_HOME.y) * ease - arc;
+
+        keeper.t = Math.min(1, keeper.t + dt / (ball.dur * 0.92));
+        const ke = 1 - Math.pow(1 - keeper.t, 1.6);
+        keeper.x = keeper.homeX + keeper.diveX * ke;
+        keeper.y = keeper.homeY + keeper.diveY * ke;
+
+        if (ball.t >= 1) resolveKick();
+      } else if (phase === "result") {
+        resultTimer -= dt;
+        if (resultTimer <= 0) {
+          if (kickIndex >= KICKS) finishMatch();
+          else resetBallAndKeeper();
         }
-      });
-      grid.appendChild(btn);
+      }
+    }
+
+    function frame(ts) {
+      if (!lastTs) lastTs = ts;
+      let dt = (ts - lastTs) / 1000;
+      lastTs = ts;
+      if (dt > 0.05) dt = 0.05;
+      step(dt);
+      draw();
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function beginMatch() {
+      kickIndex = 0;
+      goals = 0;
+      saves = 0;
+      misses = 0;
+      xpAwarded = false;
+      resetBallAndKeeper();
+      startBtn.textContent = "Shoot";
+      els.gameStatus.textContent = "Aim over the net, time the power bar, then shoot.";
+    }
+
+    canvas.addEventListener("pointermove", (e) => {
+      const p = pointerToCanvas(e);
+      pointerInside = p.y < GOAL.y + GOAL.h + 40;
+      if (phase === "ready") clampAim(p.x, p.y);
     });
 
-    els.gameStage.appendChild(grid);
-    gameCleanup = null;
+    canvas.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      const p = pointerToCanvas(e);
+      if (phase === "ready") {
+        clampAim(p.x, p.y);
+        shoot();
+      } else if (phase === "done") {
+        beginMatch();
+      }
+    });
+
+    startBtn.addEventListener("click", () => {
+      if (phase === "done") {
+        beginMatch();
+        return;
+      }
+      if (phase === "ready") shoot();
+    });
+
+    beginMatch();
+    lastTs = 0;
+    rafId = requestAnimationFrame(frame);
+
+    gameCleanup = () => {
+      cancelAnimationFrame(rafId);
+      els.gameModal.querySelector(".game-modal-card")?.classList.remove("is-pk");
+    };
   }
 
   // Geometry Dash-style auto-scroller for breaks
