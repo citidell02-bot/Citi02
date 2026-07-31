@@ -67,7 +67,7 @@
       id: "memory",
       name: "Funk Night",
       cost: 25,
-      desc: "Simple 4-lane rhythm game — hit the arrows on beat.",
+      desc: "Simple 4-lane rhythm game with a funk soundtrack — hit the arrows on beat.",
     },
     {
       id: "numbers",
@@ -386,7 +386,7 @@
     return buffer;
   }
 
-  // Minimal funk bed + SFX for Funk Night
+  // Funk Night soundtrack + SFX (lightweight Web Audio)
   function createFunkAudio(bpm) {
     const ctx = getAudioContext();
     const beatDur = 60 / Math.max(1, bpm || 120);
@@ -403,33 +403,38 @@
     }
 
     const master = ctx.createGain();
-    master.gain.value = 0.28;
+    master.gain.value = 0.34;
     master.connect(ctx.destination);
+
     const music = ctx.createGain();
-    music.gain.value = 0.75;
+    music.gain.value = 0.8;
     music.connect(master);
+
     const sfx = ctx.createGain();
-    sfx.gain.value = 1;
+    sfx.gain.value = 0.95;
     sfx.connect(master);
-    const noiseBuffer = createNoiseBuffer(ctx, 0.25);
+
+    const noiseBuffer = createNoiseBuffer(ctx, 0.3);
     let trackToken = 0;
 
-    function tone(type, freq, t, dur, peak, dest, slideTo = null) {
+    function tone(type, freq, t, dur, peak, dest = music, slideTo = null) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(Math.max(1, freq), t);
-      if (slideTo != null) osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
+      if (slideTo != null) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
+      }
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.01);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + Math.min(0.012, dur * 0.3));
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       osc.connect(gain);
       gain.connect(dest);
       osc.start(t);
-      osc.stop(t + dur + 0.02);
+      osc.stop(t + dur + 0.03);
     }
 
-    function noise(t, dur, peak, hp) {
+    function noise(t, dur, peak, hp, dest = music) {
       const src = ctx.createBufferSource();
       src.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
@@ -441,72 +446,167 @@
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       src.connect(filter);
       filter.connect(gain);
-      gain.connect(music);
+      gain.connect(dest);
       src.start(t);
       src.stop(t + dur + 0.02);
+    }
+
+    function kick(t) {
+      tone("sine", 170, t, 0.16, 0.85, music, 40);
+      noise(t, 0.03, 0.08, 80, music);
+    }
+
+    function snare(t) {
+      noise(t, 0.11, 0.28, 1400, music);
+      tone("triangle", 200, t, 0.06, 0.12, music);
+    }
+
+    function hat(t, open = false) {
+      noise(t, open ? 0.12 : 0.03, open ? 0.1 : 0.07, open ? 5000 : 7500, music);
+    }
+
+    function bass(t, freq, dur = 0.2, peak = 0.16) {
+      tone("sawtooth", freq, t, dur, peak, music, freq * 0.94);
+      tone("square", freq * 0.5, t, dur * 0.85, peak * 0.4, music);
+    }
+
+    function chord(t, freqs, dur = 0.24, peak = 0.035) {
+      freqs.forEach((freq, i) => {
+        tone(i % 2 ? "triangle" : "square", freq, t + i * 0.004, dur, peak, music);
+      });
+    }
+
+    function lead(t, freq, dur = 0.12, peak = 0.07) {
+      tone("square", freq, t, dur, peak, music);
+      tone("triangle", freq * 2, t, dur * 0.7, peak * 0.28, music);
     }
 
     function startTrack(totalBeats, countdownBeats) {
       trackToken += 1;
       const token = trackToken;
-      const t0 = ctx.currentTime + 0.04;
+      ctx.resume?.().catch?.(() => {});
+      const t0 = ctx.currentTime + 0.05;
+      music.gain.cancelScheduledValues(t0);
       music.gain.setValueAtTime(0.0001, t0);
-      music.gain.exponentialRampToValueAtTime(0.75, t0 + 0.1);
-      const roots = [82.41, 98.0, 73.42, 110.0];
+      music.gain.exponentialRampToValueAtTime(0.8, t0 + 0.12);
+
+      // E minor funk vamp: Em / D / C / B7-ish
+      const bassRoots = [82.41, 82.41, 73.42, 65.41, 61.74, 65.41, 73.42, 82.41];
+      const bassGhost = [123.47, 98.0, 110.0, 87.31, 82.41, 98.0, 110.0, 123.47];
+      const chords = [
+        [164.81, 196.0, 246.94],
+        [146.83, 185.0, 220.0],
+        [130.81, 164.81, 196.0],
+        [123.47, 155.56, 185.0],
+      ];
+      const hook = [
+        329.63, 392.0, 440.0, 493.88, 440.0, 392.0, 349.23, 329.63,
+        392.0, 440.0, 523.25, 493.88, 440.0, 392.0, 349.23, 293.66,
+      ];
 
       for (let beat = 0; beat < totalBeats; beat += 1) {
         if (token !== trackToken) break;
         const t = t0 + beat * beatDur;
+        const step8 = t + beatDur * 0.5;
+        const step16 = t + beatDur * 0.25;
         const barBeat = beat % 4;
+
         if (beat < countdownBeats) {
-          if (barBeat === 0) tone("sine", 160, t, 0.12, 0.45, music, 45);
-          tone("square", barBeat === 0 ? 880 : 660, t, 0.04, 0.06, sfx);
+          if (barBeat === 0) kick(t);
+          hat(t, false);
+          tone("square", barBeat === 0 ? 880 : 700, t, 0.04, 0.07, sfx);
           continue;
         }
-        if (barBeat === 0) tone("sine", 160, t, 0.16, 0.7, music, 42);
-        if (barBeat === 2) noise(t, 0.1, 0.22, 1400);
-        noise(t, 0.03, 0.06, 7000);
-        if (barBeat === 0 || barBeat === 2) {
-          const root = roots[((beat - countdownBeats) >> 2) % roots.length];
-          tone("sawtooth", root, t, 0.22, 0.14, music, root * 0.95);
+
+        const songBeat = beat - countdownBeats;
+        const bar = Math.floor(songBeat / 4);
+        const root = bassRoots[songBeat % bassRoots.length];
+        const ghost = bassGhost[songBeat % bassGhost.length];
+        const drop = songBeat >= Math.floor((totalBeats - countdownBeats) * 0.5);
+
+        // Drums
+        if (barBeat === 0 || (drop && barBeat === 0)) kick(t);
+        if (barBeat === 2) snare(t);
+        if (drop && songBeat % 8 === 6) kick(step8);
+        if (songBeat % 8 === 3) snare(step8);
+        hat(t, barBeat === 3);
+        hat(step8, false);
+        if (drop) hat(step16, false);
+
+        // Bass
+        if (barBeat === 0) bass(t, root, 0.24, 0.17);
+        else if (barBeat === 1) bass(step8, ghost, 0.12, 0.11);
+        else if (barBeat === 2) bass(t, root * 0.75, 0.18, 0.14);
+        else bass(step8, root, 0.1, 0.1);
+
+        // Chord stabs
+        if (barBeat === 0) {
+          chord(t, chords[bar % chords.length], drop ? 0.28 : 0.22, drop ? 0.04 : 0.032);
         }
-        if ((beat - countdownBeats) % 2 === 0) {
-          tone("square", 392 + ((beat - countdownBeats) % 8) * 20, t + beatDur * 0.25, 0.1, 0.05, music);
+        if (drop && barBeat === 2) {
+          chord(step8, chords[(bar + 1) % chords.length], 0.14, 0.028);
+        }
+
+        // Hook melody
+        if (songBeat % 2 === 0) {
+          lead(t + beatDur * 0.25, hook[songBeat % hook.length], 0.11, drop ? 0.075 : 0.055);
+        }
+        if (drop && songBeat % 4 === 1) {
+          lead(step8, hook[(songBeat + 4) % hook.length] * 1.5, 0.09, 0.05);
         }
       }
+
+      const end = t0 + totalBeats * beatDur;
+      kick(end);
+      snare(end + 0.02);
+      chord(end, [164.81, 196.0, 246.94, 329.63], 0.4, 0.045);
     }
 
     function stop() {
       trackToken += 1;
       const now = ctx.currentTime;
       music.gain.cancelScheduledValues(now);
-      music.gain.setTargetAtTime(0.0001, now, 0.04);
+      music.gain.setTargetAtTime(0.0001, now, 0.05);
     }
 
     function playHit(quality) {
       const t = ctx.currentTime + 0.001;
-      if (quality === "perfect" || quality === "sick" || quality === "good") {
-        tone("square", quality === "perfect" ? 1200 : 880, t, 0.06, 0.1, sfx);
+      if (quality === "perfect") {
+        tone("square", 1175, t, 0.05, 0.1, sfx);
+        tone("square", 1568, t + 0.03, 0.07, 0.08, sfx);
+      } else if (quality === "good") {
+        tone("triangle", 880, t, 0.07, 0.09, sfx);
+      } else if (quality === "bad") {
+        tone("sawtooth", 260, t, 0.09, 0.07, sfx);
       } else {
-        tone("sawtooth", 120, t, 0.12, 0.1, sfx, 60);
+        tone("sawtooth", 110, t, 0.14, 0.1, sfx, 55);
       }
     }
 
     function playHold() {
-      tone("triangle", 720, ctx.currentTime + 0.001, 0.08, 0.07, sfx);
+      const t = ctx.currentTime + 0.001;
+      tone("square", 660, t, 0.07, 0.07, sfx);
+      tone("triangle", 990, t + 0.04, 0.08, 0.06, sfx);
     }
 
     function playCountdown(n) {
       const t = ctx.currentTime + 0.001;
-      tone("square", n <= 0 ? 784 : 400 + (4 - Math.min(4, n)) * 80, t, 0.09, 0.11, sfx);
+      if (n <= 0) {
+        tone("square", 523, t, 0.07, 0.1, sfx);
+        tone("square", 784, t + 0.07, 0.12, 0.11, sfx);
+        return;
+      }
+      tone("square", 360 + (4 - Math.min(4, n)) * 90, t, 0.09, 0.11, sfx);
     }
 
     function playResult(cleared) {
       const t = ctx.currentTime + 0.02;
       if (cleared) {
-        [523, 659, 784].forEach((f, i) => tone("square", f, t + i * 0.08, 0.12, 0.1, sfx));
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+          tone("square", freq, t + i * 0.08, 0.12, 0.1, sfx);
+        });
       } else {
-        tone("sawtooth", 200, t, 0.28, 0.1, sfx, 70);
+        tone("sawtooth", 220, t, 0.3, 0.1, sfx, 70);
       }
     }
 
@@ -1403,7 +1503,7 @@
     const SCROLL_BEATS = 2.8;
     const HIT_WINDOW = { perfect: 40, good: 100, bad: 150 };
     const COUNTDOWN_BEATS = 4;
-    const SONG_BEATS = 32;
+    const SONG_BEATS = 48;
 
     const chart = [];
     for (let beat = 0; beat < SONG_BEATS; beat += 1) {
