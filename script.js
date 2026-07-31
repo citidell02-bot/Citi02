@@ -67,7 +67,7 @@
       id: "memory",
       name: "Funk Night",
       cost: 25,
-      desc: "FNF-style arrow battle with holds, combos, and stage flair.",
+      desc: "FNF-style arrow battle with music, holds, combos, and stage flair.",
     },
     {
       id: "numbers",
@@ -374,6 +374,255 @@
       osc.start(t0);
       osc.stop(t1 + 0.03);
     });
+  }
+
+  function createNoiseBuffer(ctx, duration = 0.2) {
+    const length = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < length; i += 1) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    return buffer;
+  }
+
+  // Original arcade funk bed + SFX for Funk Night (Web Audio synthesis)
+  function createFunkAudio(bpm) {
+    const ctx = getAudioContext();
+    if (!ctx) {
+      return {
+        startTrack() {},
+        stop() {},
+        playHit() {},
+        playCountdown() {},
+        playResult() {},
+        playHold() {},
+      };
+    }
+
+    const master = ctx.createGain();
+    master.gain.value = 0.3;
+    master.connect(ctx.destination);
+
+    const music = ctx.createGain();
+    music.gain.value = 0.8;
+    music.connect(master);
+
+    const sfx = ctx.createGain();
+    sfx.gain.value = 1;
+    sfx.connect(master);
+
+    const noiseBuffer = createNoiseBuffer(ctx, 0.3);
+    const beatDur = 60 / bpm;
+
+    function playOsc({
+      type = "square",
+      freq = 440,
+      t,
+      dur = 0.1,
+      peak = 0.1,
+      dest = music,
+      slideTo = null,
+    }) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t);
+      if (slideTo != null) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
+      }
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(peak, t + Math.min(0.02, dur * 0.25));
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      osc.connect(gain);
+      gain.connect(dest);
+      osc.start(t);
+      osc.stop(t + dur + 0.03);
+    }
+
+    function playNoise({ t, dur = 0.1, peak = 0.2, hp = 800, dest = music }) {
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = hp;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(peak, t + 0.005);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(dest);
+      src.start(t);
+      src.stop(t + dur + 0.02);
+    }
+
+    function kick(t) {
+      playOsc({ type: "sine", freq: 160, slideTo: 42, t, dur: 0.16, peak: 0.85, dest: music });
+      playNoise({ t, dur: 0.04, peak: 0.12, hp: 80, dest: music });
+    }
+
+    function snare(t) {
+      playNoise({ t, dur: 0.12, peak: 0.32, hp: 1400, dest: music });
+      playOsc({ type: "triangle", freq: 210, t, dur: 0.08, peak: 0.14, dest: music });
+    }
+
+    function hat(t, open = false) {
+      playNoise({
+        t,
+        dur: open ? 0.14 : 0.045,
+        peak: open ? 0.12 : 0.08,
+        hp: open ? 6000 : 7500,
+        dest: music,
+      });
+    }
+
+    function clap(t) {
+      playNoise({ t, dur: 0.09, peak: 0.28, hp: 1800, dest: sfx });
+      playNoise({ t: t + 0.015, dur: 0.07, peak: 0.18, hp: 2200, dest: sfx });
+    }
+
+    function bass(t, freq) {
+      playOsc({ type: "sawtooth", freq, t, dur: 0.22, peak: 0.16, dest: music });
+      playOsc({ type: "square", freq: freq * 0.5, t, dur: 0.2, peak: 0.1, dest: music });
+    }
+
+    function chord(t, freqs) {
+      freqs.forEach((freq, i) => {
+        playOsc({
+          type: "square",
+          freq,
+          t: t + i * 0.005,
+          dur: 0.28,
+          peak: 0.045,
+          dest: music,
+        });
+      });
+    }
+
+    function lead(t, freq) {
+      playOsc({ type: "square", freq, t, dur: 0.14, peak: 0.08, dest: music });
+      playOsc({ type: "triangle", freq: freq * 2, t, dur: 0.1, peak: 0.03, dest: music });
+    }
+
+    function startTrack(totalBeats, countdownBeats) {
+      const t0 = ctx.currentTime + 0.06;
+      music.gain.cancelScheduledValues(t0);
+      music.gain.setValueAtTime(0.0001, t0);
+      music.gain.exponentialRampToValueAtTime(0.8, t0 + 0.12);
+
+      const bassLine = [82.41, 82.41, 98.0, 82.41, 73.42, 73.42, 65.41, 98.0];
+      const chords = [
+        [196.0, 246.94, 293.66],
+        [174.61, 220.0, 261.63],
+        [146.83, 185.0, 220.0],
+        [164.81, 196.0, 246.94],
+      ];
+      const melody = [392.0, 440.0, 493.88, 523.25, 493.88, 440.0, 392.0, 349.23, 329.63, 392.0, 440.0, 523.25];
+
+      for (let beat = 0; beat < totalBeats; beat += 1) {
+        const t = t0 + beat * beatDur;
+        const inCount = beat < countdownBeats;
+        const barBeat = beat % 4;
+        const step8 = t + beatDur * 0.5;
+
+        if (inCount) {
+          if (barBeat === 0) kick(t);
+          hat(t, false);
+          continue;
+        }
+
+        if (barBeat === 0) kick(t);
+        if (barBeat === 2) snare(t);
+        if (beat % 8 === 4) snare(t + beatDur * 0.75);
+        if (beat % 8 === 6) kick(t + beatDur * 0.5);
+        hat(t, beat % 4 === 3);
+        hat(step8, false);
+
+        const bassFreq = bassLine[beat % bassLine.length];
+        if (beat % 2 === 0) bass(t, bassFreq);
+        else bass(t, bassFreq * 0.75);
+
+        if (beat % 4 === 0) {
+          chord(t, chords[Math.floor(beat / 4) % chords.length]);
+        }
+
+        if (beat % 2 === 0) {
+          lead(t + beatDur * 0.25, melody[beat % melody.length]);
+        }
+        if (beat % 8 === 6) {
+          lead(t + beatDur * 0.5, melody[(beat + 3) % melody.length] * 1.5);
+        }
+      }
+
+      // Soft ending hit
+      const end = t0 + totalBeats * beatDur;
+      kick(end);
+      chord(end, [196, 246.94, 311.13]);
+    }
+
+    function stop() {
+      const now = ctx.currentTime;
+      music.gain.cancelScheduledValues(now);
+      music.gain.setTargetAtTime(0.0001, now, 0.05);
+    }
+
+    function playHit(quality) {
+      const t = ctx.currentTime + 0.001;
+      if (quality === "sick") {
+        clap(t);
+        playOsc({ type: "square", freq: 988, t, dur: 0.06, peak: 0.12, dest: sfx });
+        playOsc({ type: "square", freq: 1480, t: t + 0.04, dur: 0.09, peak: 0.1, dest: sfx });
+      } else if (quality === "good") {
+        clap(t);
+        playOsc({ type: "triangle", freq: 740, t, dur: 0.08, peak: 0.11, dest: sfx });
+      } else if (quality === "bad") {
+        playOsc({ type: "sawtooth", freq: 280, t, dur: 0.1, peak: 0.08, dest: sfx });
+        playNoise({ t, dur: 0.08, peak: 0.1, hp: 900, dest: sfx });
+      } else {
+        playOsc({ type: "sawtooth", freq: 90, slideTo: 50, t, dur: 0.16, peak: 0.12, dest: sfx });
+        playNoise({ t, dur: 0.14, peak: 0.14, hp: 400, dest: sfx });
+      }
+    }
+
+    function playHold() {
+      const t = ctx.currentTime + 0.001;
+      playOsc({ type: "square", freq: 660, t, dur: 0.08, peak: 0.08, dest: sfx });
+      playOsc({ type: "triangle", freq: 990, t: t + 0.05, dur: 0.1, peak: 0.07, dest: sfx });
+    }
+
+    function playCountdown(n) {
+      const t = ctx.currentTime + 0.001;
+      if (n <= 0) {
+        playOsc({ type: "square", freq: 523.25, t, dur: 0.08, peak: 0.12, dest: sfx });
+        playOsc({ type: "square", freq: 784, t: t + 0.08, dur: 0.14, peak: 0.12, dest: sfx });
+        return;
+      }
+      const freq = 320 + (4 - n) * 90;
+      playOsc({ type: "square", freq, t, dur: 0.1, peak: 0.13, dest: sfx });
+    }
+
+    function playResult(cleared) {
+      const t = ctx.currentTime + 0.02;
+      if (cleared) {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+          playOsc({
+            type: "square",
+            freq,
+            t: t + i * 0.09,
+            dur: 0.14,
+            peak: 0.12,
+            dest: sfx,
+          });
+        });
+        clap(t + 0.35);
+      } else {
+        playOsc({ type: "sawtooth", freq: 220, slideTo: 80, t, dur: 0.35, peak: 0.12, dest: sfx });
+        playNoise({ t, dur: 0.3, peak: 0.12, hp: 500, dest: sfx });
+      }
+    }
+
+    return { startTrack, stop, playHit, playCountdown, playResult, playHold, beatDur };
   }
 
   // Focus/study cue — firm ascending chime
@@ -1307,7 +1556,9 @@
     let hits = { sick: 0, good: 0, bad: 0, miss: 0 };
     let rafId = 0;
     let lastBeat = -1;
+    let lastCountdown = null;
     let countdownDone = false;
+    const funkAudio = createFunkAudio(BPM);
 
     const root = document.createElement("div");
     root.className = "funk-game";
@@ -1492,32 +1743,6 @@
       setTimeout(() => splash.remove(), 320);
     }
 
-    function playHitTone(quality) {
-      if (quality === "sick") {
-        playToneNotes([
-          { freq: 880, start: 0, dur: 0.05 },
-          { freq: 1320, start: 0.04, dur: 0.08 },
-        ], "square", 0.09);
-      } else if (quality === "good") {
-        playToneNotes([{ freq: 700, start: 0, dur: 0.07 }], "square", 0.08);
-      } else if (quality === "bad") {
-        playToneNotes([{ freq: 420, start: 0, dur: 0.08 }], "triangle", 0.07);
-      } else {
-        playToneNotes([{ freq: 140, start: 0, dur: 0.12 }], "sawtooth", 0.05);
-      }
-    }
-
-    function playBeatTick(beat) {
-      if (beat % 4 === 0) {
-        playToneNotes([
-          { freq: 110, start: 0, dur: 0.08 },
-          { freq: 330, start: 0.02, dur: 0.05 },
-        ], "triangle", 0.06);
-      } else if (beat % 2 === 0) {
-        playToneNotes([{ freq: 180, start: 0, dur: 0.04 }], "triangle", 0.045);
-      }
-    }
-
     function judgeHit(delta) {
       const abs = Math.abs(delta);
       if (abs <= HIT_WINDOW.sick) return "sick";
@@ -1555,7 +1780,7 @@
         setTimeout(() => stage.classList.remove("is-flash"), 220);
       }
       updateHud(quality ? quality.toUpperCase() : "MISS");
-      playHitTone(quality || "miss");
+      funkAudio.playHit(quality || "miss");
       if (dir) spawnSplash(dir, quality || "miss");
     }
 
@@ -1619,6 +1844,8 @@
       startBtn.hidden = false;
       startBtn.textContent = "Play Again";
       updateHud(cleared ? "CLEAR" : "FAIL");
+      funkAudio.stop();
+      funkAudio.playResult(cleared);
       showResults(cleared);
       progressFill.style.width = "100%";
     }
@@ -1635,10 +1862,18 @@
         countdownEl.hidden = false;
         countdownEl.textContent = remain > 0 ? String(remain) : "GO";
         countdownDone = false;
+        if (remain !== lastCountdown) {
+          lastCountdown = remain;
+          funkAudio.playCountdown(remain);
+        }
       } else if (!countdownDone) {
         countdownDone = true;
         countdownEl.hidden = true;
         updateHud("GO");
+        if (lastCountdown !== 0) {
+          lastCountdown = 0;
+          funkAudio.playCountdown(0);
+        }
       }
 
       const progress = Math.max(0, Math.min(1, (t - songStart) / songDur));
@@ -1668,6 +1903,7 @@
             score += 120;
             health = Math.min(100, health + 2);
             updateHud("HOLD");
+            funkAudio.playHold();
           } else if (
             pressedDirs.size > 0 &&
             !pressedDirs.has(note.dir) &&
@@ -1692,7 +1928,6 @@
       const beat = Math.floor(t / BEAT_MS);
       if (beat !== lastBeat && beat >= 0 && beat < COUNTDOWN_BEATS + SONG_BEATS) {
         lastBeat = beat;
-        playBeatTick(beat);
         stage.classList.toggle("is-beat", beat % 2 === 0);
         board.classList.toggle("is-beat", beat % 2 === 0);
         root.querySelectorAll(".funk-dancer").forEach((dancer, i) => {
@@ -1729,6 +1964,7 @@
       running = true;
       countdownDone = false;
       lastBeat = -1;
+      lastCountdown = null;
       pressedDirs.clear();
       results.hidden = true;
       results.innerHTML = "";
@@ -1736,10 +1972,12 @@
       countdownEl.hidden = false;
       countdownEl.textContent = "4";
       progressFill.style.width = "0%";
-      startTime = performance.now();
       updateHud("");
       els.gameStatus.textContent = "Countdown… then keep the beat!";
       getAudioContext()?.resume?.();
+      funkAudio.stop();
+      funkAudio.startTrack(COUNTDOWN_BEATS + SONG_BEATS, COUNTDOWN_BEATS);
+      startTime = performance.now();
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(frame);
     }
@@ -1770,6 +2008,7 @@
       running = false;
       finished = true;
       cancelAnimationFrame(rafId);
+      funkAudio.stop();
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("keyup", onKeyUp);
       els.gameModal.querySelector(".game-modal-card")?.classList.remove("is-funk");
