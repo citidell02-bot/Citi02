@@ -1926,8 +1926,8 @@
     const GROUND_Y = 250;
     const CUBE = 26;
     const SPEED = 310;
-    const GRAVITY = 2500;
-    const JUMP_V = -660;
+    const GRAVITY = 2680;
+    const JUMP_V = -820;
     // One full jump travels this far at current scroll speed
     const JUMP_DIST = (SPEED * 2 * Math.abs(JUMP_V)) / GRAVITY;
     const HOP = JUMP_DIST; // ~164px at current tunings
