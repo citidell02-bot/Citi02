@@ -1067,6 +1067,10 @@
     renderTimer();
   }
 
+  function isFocusTimerActive() {
+    return timer.running && timer.mode === "focus";
+  }
+
   function startTimer() {
     if (timer.running) return;
 
@@ -1085,15 +1089,23 @@
     timer.intervalId = setInterval(tick, 1000);
     playTimerModeSound("start");
     renderTimer();
+    if (timer.mode === "focus") {
+      const gameWasOpen = !els.gameModal.hidden;
+      closeGame();
+      renderShop();
+      if (gameWasOpen) showToast("Games locked during focus");
+    }
   }
 
   function stopTimer(resetToggle = true) {
+    const wasFocus = timer.mode === "focus" && timer.running;
     timer.running = false;
     if (timer.intervalId) {
       clearInterval(timer.intervalId);
       timer.intervalId = null;
     }
     if (resetToggle) renderTimer();
+    if (wasFocus) renderShop();
   }
 
   function toggleTimer() {
@@ -1395,15 +1407,26 @@
 
       const meta = document.createElement("div");
       meta.className = "shop-card-meta";
-      meta.textContent = owned ? "Unlocked · Break ready" : `${game.cost} tokens`;
+      const focusLocked = owned && isFocusTimerActive();
+      meta.textContent = focusLocked
+        ? "Locked during focus"
+        : owned
+          ? "Unlocked · Break ready"
+          : `${game.cost} tokens`;
 
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = owned ? "btn btn-primary" : "btn btn-ghost";
-      if (owned) {
+      if (focusLocked) {
+        btn.className = "btn btn-ghost";
+        btn.textContent = "Focus locked";
+        btn.disabled = true;
+        btn.title = "Pause or finish your focus session to play";
+      } else if (owned) {
+        btn.className = "btn btn-primary";
         btn.textContent = "Play";
         btn.addEventListener("click", () => openGame(game.id));
       } else {
+        btn.className = "btn btn-ghost";
         btn.textContent = `Buy · ${game.cost}`;
         btn.addEventListener("click", () => buyGame(game.id));
       }
@@ -1425,6 +1448,10 @@
 
   function openGame(id) {
     if (!ownsGame(id)) return;
+    if (isFocusTimerActive()) {
+      showToast("Games are locked while the focus timer is running");
+      return;
+    }
     const game = GAMES.find((g) => g.id === id);
     if (!game) return;
 
