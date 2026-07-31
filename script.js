@@ -67,7 +67,7 @@
       id: "memory",
       name: "Funk Night",
       cost: 25,
-      desc: "Deluxe FNF-style battle: 192-beat chart, 10 sections, rolls, mines, rival pressure, heat multiplier, and layered funk soundtrack.",
+      desc: "FNF-style rhythm battle: multi-section chart, mines, heat meter, and funk soundtrack.",
     },
     {
       id: "numbers",
@@ -525,32 +525,21 @@
     function kick(t, accent = 1) {
       playOsc({
         type: "sine",
-        freq: 175,
-        slideTo: 38,
+        freq: 168,
+        slideTo: 40,
         t,
-        dur: 0.2,
-        peak: 0.92 * accent,
+        dur: 0.18,
+        peak: 0.9 * accent,
         dest: drumBus,
-        attack: 0.006,
+        attack: 0.008,
       });
-      playOsc({
-        type: "triangle",
-        freq: 96,
-        slideTo: 34,
-        t,
-        dur: 0.11,
-        peak: 0.3 * accent,
-        dest: drumBus,
-      });
-      playNoise({ t, dur: 0.03, peak: 0.12 * accent, hp: 50, lp: 380, dest: drumBus });
-      sidechain(t, 0.42 + accent * 0.12, 0.12);
+      playNoise({ t, dur: 0.03, peak: 0.1 * accent, hp: 60, lp: 400, dest: drumBus });
+      if (accent >= 1) sidechain(t, 0.35, 0.11);
     }
 
     function snare(t, accent = 1) {
-      playNoise({ t, dur: 0.14, peak: 0.36 * accent, hp: 1100, lp: 9500, dest: drumBus });
-      playNoise({ t, dur: 0.09, peak: 0.18 * accent, hp: 2600, dest: drumBus });
-      playOsc({ type: "triangle", freq: 210, t, dur: 0.08, peak: 0.16 * accent, dest: drumBus });
-      playOsc({ type: "sine", freq: 180, slideTo: 120, t, dur: 0.06, peak: 0.08 * accent, dest: drumBus });
+      playNoise({ t, dur: 0.12, peak: 0.34 * accent, hp: 1200, lp: 9000, dest: drumBus });
+      playOsc({ type: "triangle", freq: 205, t, dur: 0.07, peak: 0.14 * accent, dest: drumBus });
     }
 
     function rim(t) {
@@ -640,15 +629,7 @@
         type: "square",
         freq: freq * 0.5,
         t,
-        dur: dur * 0.9,
-        peak: peak * 0.55,
-        dest: bassBus,
-      });
-      playOsc({
-        type: "sine",
-        freq: freq * 0.5,
-        t,
-        dur: dur * 1.05,
+        dur: dur * 0.85,
         peak: peak * 0.45,
         dest: bassBus,
       });
@@ -742,8 +723,7 @@
 
     function lead(t, freq, dur = 0.13, peak = 0.085) {
       playOsc({ type: "square", freq, t, dur, peak, dest: leadBus });
-      playOsc({ type: "triangle", freq: freq * 2, t, dur: dur * 0.75, peak: peak * 0.35, dest: leadBus });
-      playOsc({ type: "sine", freq: freq * 3, t, dur: dur * 0.4, peak: peak * 0.12, dest: leadBus });
+      playOsc({ type: "triangle", freq: freq * 2, t, dur: dur * 0.7, peak: peak * 0.3, dest: leadBus });
     }
 
     function arp(t, freq) {
@@ -759,29 +739,21 @@
 
     function sectionNameForSongBeat(songBeat, songBeats) {
       const p = songBeat / Math.max(1, songBeats);
-      if (p < 0.083) return "intro";
-      if (p < 0.208) return "verse";
-      if (p < 0.292) return "pre";
-      if (p < 0.417) return "chorus";
+      if (p < 0.125) return "intro";
+      if (p < 0.375) return "verse";
       if (p < 0.5) return "build";
-      if (p < 0.667) return "drop";
-      if (p < 0.75) return "break";
-      if (p < 0.833) return "verse2";
-      if (p < 0.917) return "final";
+      if (p < 0.75) return "drop";
+      if (p < 0.875) return "break";
       return "outro";
     }
 
     function densityFor(section) {
       const map = {
-        intro: 0.4,
+        intro: 0.42,
         verse: 0.68,
-        pre: 0.78,
-        chorus: 0.88,
-        build: 0.92,
-        drop: 1,
-        break: 0.35,
-        verse2: 0.72,
-        final: 1,
+        build: 0.85,
+        drop: 0.95,
+        break: 0.38,
         outro: 0.55,
       };
       return map[section] || 0.6;
@@ -856,18 +828,12 @@
         const step8 = t + beatDur * 0.5;
         const step16a = t + beatDur * 0.25;
         const step16b = t + beatDur * 0.75;
-        const step32a = t + beatDur * 0.125;
-        const step32b = t + beatDur * 0.375;
-        const step32c = t + beatDur * 0.625;
-        const step32d = t + beatDur * 0.875;
 
         if (inCount) {
           if (barBeat === 0) kick(t, 0.7);
           hat(t, false, 0.65);
-          shaker(step8, 0.5);
           click(t, barBeat === 0);
           if (barBeat === 2) click(step8, false);
-          if (beat === countdownBeats - 1) crash(step8);
           continue;
         }
 
@@ -876,146 +842,58 @@
         const dens = densityFor(section);
         const bar = Math.floor(songBeat / 4);
         const fillPos = songBeat % 32;
-        const nearFill = fillPos >= 28 && dens > 0.5;
-        const heatBoost = 1 + heatLevel * 0.15;
 
-        if (section === "build") {
-          const buildP = Math.min(1, (songBeat - songBeats * 0.417) / Math.max(1, songBeats * 0.083));
-          harmFilter.frequency.setValueAtTime(1200 + buildP * 10000, t);
-        } else if (section === "drop" || section === "final") {
-          harmFilter.frequency.setValueAtTime(14000, t);
-        } else if (section === "break") {
-          harmFilter.frequency.setValueAtTime(2800, t);
-        } else {
-          harmFilter.frequency.setValueAtTime(9000 + dens * 2000, t);
-        }
-
-        if (nearFill) {
-          if (fillPos === 28) drumFill(t, beatDur, bar % 3);
-          else if (fillPos === 30) {
-            kick(t, 1.05);
-            snare(step8, 1.1);
-            hat(step16a, false);
-            hat(step16b, true);
-            shaker(step32c, 0.8);
-          } else {
-            hat(t, false, 1.05);
-            rim(step16a);
-            if (barBeat === 3) snare(t, 1.05);
-          }
+        if (fillPos === 28 && dens > 0.55) {
+          drumFill(t, beatDur, 0);
         } else if (section === "break") {
           if (barBeat === 0) kick(t, 0.65);
           if (barBeat === 2) snare(t, 0.6);
           hat(t, false, 0.5);
-          if (barBeat === 1 || barBeat === 3) rim(step8);
-          if (barBeat === 3) hat(step8, true, 0.55);
-          shaker(step16b, 0.45);
         } else {
-          if (barBeat === 0) kick(t, (dens > 0.9 ? 1.12 : 1) * heatBoost);
-          if ((section === "drop" || section === "final") && barBeat === 0) kick(step16b, 0.78);
-          if (section === "chorus" && barBeat === 0) kick(step8, 0.7);
-          if (section === "build" && barBeat === 3) kick(step8, 0.88);
-          if (section === "pre" && barBeat === 2) kick(step16b, 0.65);
+          if (barBeat === 0) kick(t, dens > 0.9 ? 1.08 : 1);
+          if (section === "drop" && barBeat === 0) kick(step16b, 0.7);
           if (barBeat === 2) snare(t, dens);
-          if (dens > 0.85 && songBeat % 8 === 5) snare(step8, 0.82);
-          if (dens > 0.7 && songBeat % 8 === 6) kick(step8, 0.92);
-          if (dens > 0.9 && songBeat % 4 === 1) rim(step16a);
-          hat(t, barBeat === 3 && dens > 0.6, dens);
-          hat(step8, false, dens * 0.9);
-          if (dens > 0.75) {
-            hat(step16a, false, 0.55);
-            shaker(step16b, dens * 0.7);
-          }
-          if (section === "drop" || section === "final") {
-            hat(step16b, false, 0.52);
-            shaker(step32a, 0.55);
-            shaker(step32c, 0.55);
-            if (barBeat === 0 || barBeat === 2) ride(step8, 0.7);
-          }
-          if (dens > 0.78 && songBeat % 8 === 3) clap(step8);
-          if (dens > 0.9 && songBeat % 16 === 7) cowbell(step16b);
-          if ((section === "drop" || section === "final") && songBeat % 16 === 12) tom(step8, true);
-          if (section === "chorus" && songBeat % 16 === 15) crash(step8);
+          if (dens > 0.85 && songBeat % 8 === 6) kick(step8, 0.85);
+          hat(t, barBeat === 3 && dens > 0.65, dens);
+          if (dens > 0.7) hat(step8, false, dens * 0.85);
+          if (dens > 0.9 && songBeat % 8 === 3) clap(step8);
         }
 
-        if ((section === "drop" || section === "final") && songBeat % 32 === 0) {
-          crash(t);
-          scratch(t);
-        }
+        if (section === "drop" && songBeat % 32 === 0) crash(t);
 
         const root = bassRoot[songBeat % bassRoot.length];
         const slide = bassSlide[songBeat % bassSlide.length];
         if (section === "break") {
-          if (barBeat === 0 || barBeat === 2) bass(t, root, null, 0.22, 0.1);
-        } else if (section === "intro") {
-          if (barBeat === 0) bass(t, root, slide, 0.3, 0.14);
-          else if (barBeat === 2) bass(t, slide, root, 0.22, 0.12);
+          if (barBeat === 0) bass(t, root, null, 0.22, 0.1);
         } else {
-          if (barBeat === 0) bass(t, root, slide, 0.28, 0.19 * dens);
-          else if (barBeat === 1 && dens > 0.6) bass(step8, root * 0.75, root, 0.16, 0.13 * dens);
-          else if (barBeat === 2) bass(t, slide, root, 0.24, 0.17 * dens);
-          else if (dens > 0.75) bass(step8, root * 1.5, root, 0.12, 0.11 * dens);
-          if ((section === "drop" || section === "final" || section === "chorus") && songBeat % 8 === 3) {
-            slapBass(step16b, root);
-          }
-          if (dens > 0.85 && barBeat === 3) bass(step32d, root * 1.25, root, 0.08, 0.08 * dens);
+          if (barBeat === 0) bass(t, root, slide, 0.26, 0.17 * dens);
+          else if (barBeat === 2) bass(t, slide, root, 0.22, 0.14 * dens);
         }
 
-        if (barBeat === 0 && dens > 0.35) {
-          const c = chords[bar % chords.length];
-          chord(t, c, section === "drop" || section === "final" ? 0.38 : 0.28, section === "intro" ? 0.028 : 0.046);
-          if (section === "chorus" || section === "final") pad(t, c, 1.4, 0.02);
-        }
-        if ((section === "build" || section === "pre") && barBeat === 2) {
-          chord(t, chords[(bar + 1) % chords.length], 0.2, 0.034);
-        }
-        if ((section === "chorus" || section === "drop" || section === "final") && barBeat === 0 && songBeat % 8 === 0) {
-          brass(t, brassNotes[bar % brassNotes.length], 0.2, 0.055 * dens);
-        }
-        if (section === "pre" && barBeat === 0) {
-          brass(t, brassNotes[(bar + 2) % brassNotes.length], 0.16, 0.045);
+        if (barBeat === 0 && dens > 0.4) {
+          chord(t, chords[bar % chords.length], 0.28, section === "intro" ? 0.028 : 0.042);
         }
 
-        if (dens > 0.5) {
-          if (songBeat % 2 === 0) lead(t + beatDur * 0.25, melody[songBeat % melody.length], 0.12, 0.08 * dens);
-          if ((section === "drop" || section === "final") && songBeat % 4 === 1) {
-            lead(step8, melody[(songBeat + 4) % melody.length] * 1.5, 0.1, 0.072);
-          }
-          if ((section === "verse" || section === "verse2") && songBeat % 8 === 6) {
-            lead(step8, melody[(songBeat + 2) % melody.length], 0.16, 0.075);
-          }
-          if (section === "chorus" && songBeat % 4 === 2) {
-            lead(step16a, melody[(songBeat + 6) % melody.length], 0.11, 0.07);
-            lead(step16b, melody[(songBeat + 8) % melody.length], 0.11, 0.065);
-          }
-          if ((section === "drop" || section === "final" || section === "build") && songBeat % 2 === 1) {
-            wah(step8, melody[(songBeat + 3) % melody.length] * 0.5, 0.18, 0.06 * dens);
-          }
+        if (dens > 0.55 && songBeat % 2 === 0) {
+          lead(t + beatDur * 0.25, melody[songBeat % melody.length], 0.12, 0.075 * dens);
+        }
+        if (dens > 0.75 && section === "drop" && songBeat % 4 === 1) {
+          lead(step8, melody[(songBeat + 4) % melody.length] * 1.5, 0.1, 0.06);
         }
 
-        if (dens > 0.68) {
-          const sync = (songBeat % 2 === 0 ? 0.375 : 0.125) * beatDur;
-          arp(t + sync, arpNotes[songBeat % arpNotes.length]);
-          if (section === "drop" || section === "build" || section === "final") {
-            arp(t + beatDur * 0.625, arpNotes[(songBeat + 3) % arpNotes.length] * 0.5);
-          }
-          if (section === "final") {
-            arp(t + beatDur * 0.875, arpNotes[(songBeat + 5) % arpNotes.length]);
-          }
+        if (dens > 0.8 && (section === "drop" || section === "build")) {
+          arp(t + beatDur * 0.375, arpNotes[songBeat % arpNotes.length]);
         }
 
         if (section === "outro" && barBeat === 0) {
-          chord(t, [196.0, 246.94, 311.13, 392.0], 0.45, 0.05);
-          pad(t, [196.0, 246.94, 311.13], 1.6, 0.03);
+          chord(t, [196.0, 246.94, 311.13, 392.0], 0.4, 0.05);
         }
       }
 
       const end = t0 + totalBeats * beatDur;
-      kick(end, 1.15);
-      snare(end + 0.02, 0.85);
-      crash(end);
-      chord(end, [196.0, 246.94, 311.13, 392.0], 0.5, 0.06);
-      pad(end, [196.0, 246.94, 311.13, 392.0], 1.8, 0.035);
+      kick(end, 1.1);
+      snare(end + 0.02, 0.8);
+      chord(end, [196.0, 246.94, 311.13, 392.0], 0.45, 0.055);
     }
 
     function stop() {
@@ -2061,44 +1939,25 @@
     const SCROLL_BEATS = 3.35;
     const HIT_WINDOW = { perfect: 30, sick: 60, good: 110, bad: 160 };
     const COUNTDOWN_BEATS = 8;
-    const SONG_BEATS = 192;
-    const MAX_PARTICLES = 48;
-    const SECTION_ORDER = [
-      "intro",
-      "verse",
-      "pre",
-      "chorus",
-      "build",
-      "drop",
-      "break",
-      "verse2",
-      "final",
-      "outro",
-    ];
+    const SONG_BEATS = 96;
+    const MAX_PARTICLES = 10;
+    const SECTION_ORDER = ["intro", "verse", "build", "drop", "break", "outro"];
     const SECTION_LABELS = {
       intro: "INTRO",
       verse: "VERSE",
-      pre: "PRE",
-      chorus: "CHORUS",
       build: "BUILD",
       drop: "DROP",
       break: "BREAK",
-      verse2: "VERSE II",
-      final: "FINAL",
       outro: "OUTRO",
     };
 
     function sectionAt(beat) {
       const p = beat / SONG_BEATS;
-      if (p < 0.083) return "intro";
-      if (p < 0.208) return "verse";
-      if (p < 0.292) return "pre";
-      if (p < 0.417) return "chorus";
+      if (p < 0.125) return "intro";
+      if (p < 0.375) return "verse";
       if (p < 0.5) return "build";
-      if (p < 0.667) return "drop";
-      if (p < 0.75) return "break";
-      if (p < 0.833) return "verse2";
-      if (p < 0.917) return "final";
+      if (p < 0.75) return "drop";
+      if (p < 0.875) return "break";
       return "outro";
     }
 
@@ -2107,21 +1966,19 @@
     const pushNote = (beat, dir, opts = {}) => {
       const holdBeats = opts.holdBeats || 0;
       const mine = Boolean(opts.mine);
-      const roll = Boolean(opts.roll);
-      const rival = Boolean(opts.rival);
       if (beat < 0 || beat >= SONG_BEATS) return;
       const lane = DIRS.includes(dir) ? dir : DIRS[Math.floor(beat) % 4];
-      const key = `${beat.toFixed(3)}:${lane}:${mine ? "m" : roll ? "r" : "n"}:${holdBeats}`;
+      const key = `${beat.toFixed(3)}:${lane}:${mine ? "m" : "n"}:${holdBeats}`;
       if (seen.has(key)) return;
       seen.add(key);
       chart.push({
         beat,
         dir: lane,
         lane,
-        holdBeats: mine || roll ? 0 : holdBeats,
+        holdBeats: mine ? 0 : holdBeats,
         mine,
-        roll,
-        rival,
+        roll: false,
+        rival: false,
       });
     };
 
@@ -2131,139 +1988,44 @@
       const d1 = DIRS[(beat + 1) % 4];
       const d2 = DIRS[(beat + 2) % 4];
       const d3 = DIRS[(beat + 3) % 4];
-      const phrase = beat % 16;
 
       if (section === "intro") {
         if (beat % 2 === 0) pushNote(beat, d0);
         if (beat % 4 === 2) pushNote(beat + 0.5, d2);
-        if (beat % 8 === 6) pushNote(beat + 0.25, d1);
-        if (beat % 16 === 12) pushNote(beat + 0.75, d3, { holdBeats: 1 });
-      } else if (section === "verse" || section === "verse2") {
+      } else if (section === "verse") {
         if (beat % 2 === 0) pushNote(beat, d0);
         if (beat % 2 === 1) pushNote(beat + 0.5, d2);
         if (beat % 4 === 0) pushNote(beat + 0.5, d1, { holdBeats: 0.75 });
-        if (beat % 8 === 3) pushNote(beat + 0.25, d3);
-        if (beat % 8 === 5) pushNote(beat + 0.75, d0);
-        if (phrase === 10) {
-          pushNote(beat, d0);
-          pushNote(beat, d2);
-        }
-        if (phrase === 14) pushNote(beat + 0.5, d1, { mine: true });
-        if (section === "verse2" && beat % 4 === 1) pushNote(beat + 0.25, d3);
-        if (section === "verse2" && phrase === 7) {
-          pushNote(beat + 0.125, d0, { roll: true });
-          pushNote(beat + 0.25, d0, { roll: true });
-          pushNote(beat + 0.375, d0, { roll: true });
-        }
-        if (beat % 8 === 4) pushNote(beat, d1, { rival: true });
-      } else if (section === "pre") {
-        pushNote(beat, d0);
-        if (beat % 2 === 0) pushNote(beat + 0.5, d2);
-        if (beat % 2 === 1) {
-          pushNote(beat + 0.25, d1);
-          pushNote(beat + 0.75, d3);
-        }
-        if (beat % 4 === 0) pushNote(beat + 0.5, d3, { holdBeats: 1 });
-        if (phrase === 12) {
-          pushNote(beat, d1);
-          pushNote(beat, d3);
-        }
-        if (phrase === 15) pushNote(beat + 0.5, d0, { mine: true });
-      } else if (section === "chorus") {
-        pushNote(beat, d0);
-        pushNote(beat + 0.5, d2);
-        if (beat % 2 === 0) {
-          pushNote(beat + 0.25, d1);
-          pushNote(beat + 0.75, d3);
-        }
-        if (beat % 4 === 1) {
-          pushNote(beat, d0);
-          pushNote(beat, d2);
-        }
-        if (beat % 4 === 0) pushNote(beat + 0.5, d1, { holdBeats: 1 });
-        if (phrase === 6 || phrase === 14) {
-          pushNote(beat + 0.125, d3, { roll: true });
-          pushNote(beat + 0.25, d3, { roll: true });
-          pushNote(beat + 0.375, d3, { roll: true });
-        }
-        if (phrase === 11) pushNote(beat + 0.5, d0, { mine: true });
-        if (beat % 8 === 2) pushNote(beat, d2, { rival: true });
+        if (beat % 8 === 5) pushNote(beat + 0.75, d3);
+        if (beat % 16 === 14) pushNote(beat + 0.5, d1, { mine: true });
       } else if (section === "build") {
         pushNote(beat, d0);
-        pushNote(beat + 0.5, d2);
-        pushNote(beat + 0.25, d1);
-        pushNote(beat + 0.75, d3);
-        if (beat % 2 === 0) {
-          pushNote(beat + 0.125, d0);
-          pushNote(beat + 0.375, d2);
-        }
-        if (beat % 4 === 0) pushNote(beat + 0.5, d3, { holdBeats: 1.25 });
-        if (phrase === 8 || phrase === 12) {
-          pushNote(beat, d1);
-          pushNote(beat, d3);
-        }
-        if (phrase === 14) pushNote(beat + 0.5, d1, { mine: true });
-      } else if (section === "drop" || section === "final") {
+        if (beat % 2 === 0) pushNote(beat + 0.5, d2);
+        if (beat % 2 === 1) pushNote(beat + 0.25, d1);
+        if (beat % 4 === 0) pushNote(beat + 0.5, d3, { holdBeats: 1 });
+        if (beat % 8 === 6) pushNote(beat + 0.5, d0, { mine: true });
+      } else if (section === "drop") {
         pushNote(beat, d0);
         pushNote(beat + 0.5, d2);
-        pushNote(beat + 0.25, d1);
-        pushNote(beat + 0.75, d3);
         if (beat % 2 === 0) {
-          pushNote(beat + 0.125, d3);
-          pushNote(beat + 0.375, d0);
-          pushNote(beat + 0.625, d2);
+          pushNote(beat + 0.25, d1);
+          pushNote(beat + 0.75, d3);
         }
-        if (beat % 4 === 1) {
-          pushNote(beat, d0);
-          pushNote(beat, d2);
-        }
-        if (beat % 4 === 3) {
-          pushNote(beat, d1);
-          pushNote(beat, d3);
-        }
-        if (beat % 4 === 0) pushNote(beat + 0.5, d1, { holdBeats: 1.25 });
-        if (phrase === 4 || phrase === 12) {
-          pushNote(beat + 0.125, d2, { roll: true });
-          pushNote(beat + 0.25, d2, { roll: true });
-          pushNote(beat + 0.375, d2, { roll: true });
-          pushNote(beat + 0.5, d2, { roll: true });
-        }
-        if (phrase === 8 || phrase === 14) pushNote(beat + 0.5, d3, { mine: true });
-        if (phrase === 15) {
-          pushNote(beat, d1);
-          pushNote(beat, d3);
-          pushNote(beat + 0.5, d0, { holdBeats: 0.75 });
-        }
-        if (section === "final" && beat % 2 === 1) {
-          pushNote(beat + 0.125, d1);
-          pushNote(beat + 0.625, d3);
-        }
-        if (beat % 8 === 5) pushNote(beat, d0, { rival: true });
+        if (beat % 4 === 0) pushNote(beat + 0.5, d1, { holdBeats: 1 });
+        if (beat % 16 === 12) pushNote(beat + 0.5, d3, { mine: true });
       } else if (section === "break") {
         if (beat % 2 === 0) pushNote(beat, d0);
-        if (beat % 4 === 2) pushNote(beat + 0.5, d2, { holdBeats: 1.5 });
-        if (beat % 8 === 5) pushNote(beat + 0.25, d1);
+        if (beat % 4 === 2) pushNote(beat + 0.5, d2, { holdBeats: 1.25 });
         if (beat % 8 === 7) pushNote(beat + 0.5, d3, { mine: true });
-        if (phrase === 10) {
-          pushNote(beat + 0.25, d0, { roll: true });
-          pushNote(beat + 0.5, d0, { roll: true });
-        }
       } else {
         if (beat % 2 === 0) {
           pushNote(beat, d0);
           pushNote(beat + 0.5, d2);
         }
-        if (beat % 4 === 1) pushNote(beat + 0.25, d1);
         if (beat % 4 === 3) pushNote(beat + 0.75, d3);
         if (beat % 8 === 4) {
           pushNote(beat, d1);
           pushNote(beat, d3);
-        }
-        if (beat % 8 === 6) pushNote(beat + 0.5, d0, { holdBeats: 1 });
-        if (phrase === 14) {
-          pushNote(beat, d0);
-          pushNote(beat, d1);
-          pushNote(beat, d2);
         }
       }
     }
@@ -2308,69 +2070,18 @@
     const stage = document.createElement("div");
     stage.className = "funk-stage";
     stage.innerHTML = `
-      <div class="funk-skyline" aria-hidden="true">
-        <span class="funk-bldg" style="--h:18px"></span>
-        <span class="funk-bldg" style="--h:28px"></span>
-        <span class="funk-bldg" style="--h:22px"></span>
-        <span class="funk-bldg" style="--h:34px"></span>
-        <span class="funk-bldg" style="--h:20px"></span>
-        <span class="funk-bldg" style="--h:30px"></span>
-        <span class="funk-bldg" style="--h:24px"></span>
-        <span class="funk-bldg" style="--h:36px"></span>
-        <span class="funk-bldg" style="--h:19px"></span>
-        <span class="funk-bldg" style="--h:27px"></span>
-      </div>
-      <div class="funk-led-wall" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
       <div class="funk-spotlights" aria-hidden="true">
         <span class="funk-spot funk-spot-a"></span>
         <span class="funk-spot funk-spot-b"></span>
-        <span class="funk-spot funk-spot-c"></span>
-        <span class="funk-spot funk-spot-d"></span>
       </div>
-      <div class="funk-lasers" aria-hidden="true">
-        <span class="funk-laser funk-laser-a"></span>
-        <span class="funk-laser funk-laser-b"></span>
-        <span class="funk-laser funk-laser-c"></span>
-        <span class="funk-laser funk-laser-d"></span>
-      </div>
-      <div class="funk-disco" aria-hidden="true"></div>
-      <div class="funk-fog" aria-hidden="true"></div>
       <div class="funk-neon-sign" aria-hidden="true">FUNK NIGHT</div>
-      <div class="funk-marquee" aria-hidden="true"><span>MIDNIGHT BREAKOUT · LIVE · HARDCORE FUNK · KEEP THE HEAT</span></div>
       <div class="funk-speakers" aria-hidden="true">
-        <span class="funk-speaker funk-speaker-left"><i></i><i></i></span>
-        <span class="funk-speaker funk-speaker-right"><i></i><i></i></span>
-        <span class="funk-amp funk-amp-left"></span>
-        <span class="funk-amp funk-amp-right"></span>
-      </div>
-      <div class="funk-mics" aria-hidden="true">
-        <span class="funk-mic funk-mic-left"></span>
-        <span class="funk-mic funk-mic-right"></span>
+        <span class="funk-speaker funk-speaker-left"></span>
+        <span class="funk-speaker funk-speaker-right"></span>
       </div>
       <div class="funk-stage-glow"></div>
-      <div class="funk-crowd" aria-hidden="true">
-        ${Array.from({ length: 18 }, (_, i) => `<span class="funk-fan" style="--i:${i}"></span>`).join("")}
-      </div>
+      <div class="funk-crowd" aria-hidden="true"></div>
       <div class="funk-dancer funk-dancer-left" aria-hidden="true">
-        <span class="funk-dancer-head"></span>
-        <span class="funk-dancer-arm funk-dancer-arm-l"></span>
-        <span class="funk-dancer-body"></span>
-        <span class="funk-dancer-arm funk-dancer-arm-r"></span>
-        <span class="funk-dancer-legs"></span>
-      </div>
-      <div class="funk-dancer funk-dancer-mid-left" aria-hidden="true">
-        <span class="funk-dancer-head"></span>
-        <span class="funk-dancer-arm funk-dancer-arm-l"></span>
-        <span class="funk-dancer-body"></span>
-        <span class="funk-dancer-arm funk-dancer-arm-r"></span>
-        <span class="funk-dancer-legs"></span>
-      </div>
-      <div class="funk-dancer funk-dancer-mid-right" aria-hidden="true">
         <span class="funk-dancer-head"></span>
         <span class="funk-dancer-arm funk-dancer-arm-l"></span>
         <span class="funk-dancer-body"></span>
@@ -2384,20 +2095,18 @@
         <span class="funk-dancer-arm funk-dancer-arm-r"></span>
         <span class="funk-dancer-legs"></span>
       </div>
-      <div class="funk-confetti" aria-hidden="true"></div>
-      <div class="funk-stage-floor">
-        <span></span><span></span><span></span><span></span><span></span><span></span>
-      </div>
+      <div class="funk-stage-floor"></div>
     `;
+    const dancers = [...stage.querySelectorAll(".funk-dancer")];
 
     const trackMeta = document.createElement("div");
     trackMeta.className = "funk-track-meta";
     trackMeta.innerHTML = `
       <div>
-        <div class="funk-track-title">Midnight Breakout: Deluxe</div>
-        <div class="funk-track-sub">150 BPM · 192 beats · 10 sections · rolls · mines · rival pressure</div>
+        <div class="funk-track-title">Midnight Breakout</div>
+        <div class="funk-track-sub">150 BPM · Intro / Verse / Build / Drop / Break / Outro</div>
       </div>
-      <div class="funk-diff">EXTREME</div>
+      <div class="funk-diff">HARD</div>
     `;
 
     const hud = document.createElement("div");
@@ -2414,14 +2123,10 @@
     metaHud.className = "funk-meta-hud";
     metaHud.innerHTML = `
       <span data-meta="mult">×1</span>
-      <span data-meta="beat">BEAT 0</span>
       <span data-meta="fc">FC OK</span>
-      <span data-meta="offset">TIMING —</span>
     `;
     const multEl = metaHud.querySelector('[data-meta="mult"]');
-    const beatEl = metaHud.querySelector('[data-meta="beat"]');
     const fcEl = metaHud.querySelector('[data-meta="fc"]');
-    const offsetEl = metaHud.querySelector('[data-meta="offset"]');
 
     const heatWrap = document.createElement("div");
     heatWrap.className = "funk-heat";
@@ -2442,8 +2147,6 @@
       <span data-stat="bad">BAD 0</span>
       <span data-stat="miss">MISS 0</span>
       <span data-stat="mines">MINES 0</span>
-      <span data-stat="rolls">ROLLS 0</span>
-      <span data-stat="holds">HOLDS 0</span>
     `;
 
     const healthWrap = document.createElement("div");
@@ -2458,12 +2161,7 @@
     const progressWrap = document.createElement("div");
     progressWrap.className = "funk-progress";
     progressWrap.innerHTML = `
-      <div class="funk-progress-track">
-        <div class="funk-progress-fill"></div>
-        <div class="funk-progress-marks">${SECTION_ORDER.map((s, i) =>
-          `<i style="left:${(i / SECTION_ORDER.length) * 100}%" title="${SECTION_LABELS[s]}"></i>`
-        ).join("")}</div>
-      </div>
+      <div class="funk-progress-track"><div class="funk-progress-fill"></div></div>
       <span class="funk-section-label">INTRO</span>
     `;
     const progressFill = progressWrap.querySelector(".funk-progress-fill");
@@ -2482,18 +2180,14 @@
     const bannerEl = document.createElement("div");
     bannerEl.className = "funk-section-banner";
     bannerEl.hidden = true;
-    const offsetMeter = document.createElement("div");
-    offsetMeter.className = "funk-offset-meter";
-    offsetMeter.innerHTML = `<span class="funk-offset-needle"></span>`;
-    const offsetNeedle = offsetMeter.querySelector(".funk-offset-needle");
-    boardWrap.append(board, particleLayer, judgeEl, countdownEl, bannerEl, offsetMeter);
+    boardWrap.append(board, particleLayer, judgeEl, countdownEl, bannerEl);
 
     const receptors = {};
     const lanes = {};
     DIRS.forEach((dir) => {
       const lane = document.createElement("div");
       lane.className = `funk-lane funk-lane-${dir}`;
-      lane.innerHTML = `<span class="funk-lane-beam" aria-hidden="true"></span>`;
+      // keep lane empty for cheaper paint
       const receptor = document.createElement("button");
       receptor.type = "button";
       receptor.className = `funk-receptor funk-receptor-${dir}`;
@@ -2529,7 +2223,7 @@
     const hint = document.createElement("p");
     hint.className = "funk-hint";
     hint.textContent =
-      "←↓↑→ / A S W D · hold long notes · mash rolls · dodge mines · heat raises score multiplier";
+      "Keys: ←↓↑→ or A S W D · hold long notes · avoid red mines · click receptors";
 
     root.append(
       stage,
@@ -2547,7 +2241,7 @@
     );
     els.gameStage.appendChild(root);
     els.gameStatus.textContent =
-      "Midnight Breakout: Deluxe — 10 sections, rolls, mines, rival pressure, full funk bed.";
+      "Midnight Breakout — hit arrows on beat, dodge mines, keep health alive.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-funk");
 
     const noteEls = chart.map((note) => {
@@ -2640,7 +2334,7 @@
 
     function setDancerPose(dir) {
       lastHitDir = dir || lastHitDir;
-      root.querySelectorAll(".funk-dancer").forEach((dancer) => {
+      dancers.forEach((dancer) => {
         dancer.classList.remove("pose-left", "pose-down", "pose-up", "pose-right");
         dancer.classList.add(`pose-${lastHitDir}`);
       });
@@ -2659,23 +2353,11 @@
       }, 900);
     }
 
-    function burstConfetti(count = 16) {
-      const layer = stage.querySelector(".funk-confetti");
-      if (!layer) return;
-      for (let i = 0; i < count; i += 1) {
-        const bit = document.createElement("i");
-        bit.style.left = `${8 + Math.random() * 84}%`;
-        bit.style.setProperty("--hue", String(Math.floor(Math.random() * 360)));
-        bit.style.setProperty("--drift", `${(Math.random() - 0.5) * 80}px`);
-        bit.style.animationDelay = `${Math.random() * 0.12}s`;
-        layer.appendChild(bit);
-        setTimeout(() => bit.remove(), 900);
-      }
-    }
+    function burstConfetti() {}
 
     function spawnParticles(dir, quality) {
       if (quality !== "perfect" && quality !== "sick") return;
-      const n = quality === "perfect" ? 8 : 5;
+      const n = quality === "perfect" ? 3 : 2;
       for (let i = 0; i < n; i += 1) {
         if (particleCount >= MAX_PARTICLES) break;
         particleCount += 1;
@@ -2716,8 +2398,6 @@
       statsRow.querySelector('[data-stat="bad"]').textContent = `BAD ${hits.bad}`;
       statsRow.querySelector('[data-stat="miss"]').textContent = `MISS ${hits.miss}`;
       statsRow.querySelector('[data-stat="mines"]').textContent = `MINES ${minesAvoided}`;
-      statsRow.querySelector('[data-stat="rolls"]').textContent = `ROLLS ${rollsHit}`;
-      statsRow.querySelector('[data-stat="holds"]').textContent = `HOLDS ${holdsCleared}`;
       if (judgeText !== undefined) {
         judgeEl.textContent = judgeText;
         judgeEl.className = `funk-judge${
@@ -2735,13 +2415,7 @@
       const splash = document.createElement("span");
       splash.className = `funk-splash funk-splash-${dir} is-${quality || "miss"}`;
       lanes[dir].appendChild(splash);
-      setTimeout(() => splash.remove(), 320);
-      const beam = lanes[dir].querySelector(".funk-lane-beam");
-      if (beam && quality && quality !== "miss" && quality !== "bad") {
-        beam.classList.remove("is-flash");
-        void beam.offsetWidth;
-        beam.classList.add("is-flash");
-      }
+      setTimeout(() => splash.remove(), 280);
     }
 
     function judgeHit(delta) {
@@ -2762,34 +2436,14 @@
       else if (delta <= 20) timingBuckets.perfect += 1;
       else if (delta <= 55) timingBuckets.late1 += 1;
       else timingBuckets.late2 += 1;
-      const pct = Math.max(-1, Math.min(1, delta / HIT_WINDOW.bad));
-      offsetNeedle.style.transform = `translateX(${pct * 42}px)`;
-      offsetEl.textContent =
-        Math.abs(delta) <= HIT_WINDOW.perfect
-          ? "TIMING LOCK"
-          : delta < 0
-            ? `EARLY ${Math.abs(Math.round(delta))}ms`
-            : `LATE ${Math.round(delta)}ms`;
+      // timing buckets only — skip live offset DOM for performance
     }
 
     function comboShout(nextCombo) {
-      const milestones = [10, 25, 50, 75, 100, 150];
-      if (!milestones.includes(nextCombo)) return;
+      if (nextCombo !== 25 && nextCombo !== 50) return;
       stage.classList.add("is-flash");
-      setTimeout(() => stage.classList.remove("is-flash"), 260);
-      const labels = {
-        10: "NICE",
-        25: "GREAT",
-        50: "ON FIRE",
-        75: "BLAZING",
-        100: "UNSTOPPABLE",
-        150: "LEGENDARY",
-      };
-      flashBanner(labels[nextCombo] || "COMBO");
-      burstConfetti(nextCombo >= 50 ? 22 : 12);
-      if (typeof funkAudio.playSection === "function") {
-        funkAudio.playSection(nextCombo >= 100 ? "final" : nextCombo >= 50 ? "drop" : "chorus");
-      }
+      setTimeout(() => stage.classList.remove("is-flash"), 220);
+      flashBanner(nextCombo === 50 ? "ON FIRE" : "GREAT");
     }
 
     function applyJudge(quality, dir, fromMine, opts = {}) {
@@ -2959,8 +2613,6 @@
           <div><span>Bad</span><strong>${hits.bad}</strong></div>
           <div><span>Miss</span><strong>${hits.miss}</strong></div>
           <div><span>Mines Avoided</span><strong>${minesAvoided}</strong></div>
-          <div><span>Rolls</span><strong>${rollsHit}</strong></div>
-          <div><span>Holds</span><strong>${holdsCleared}</strong></div>
           <div><span>Heat Peak</span><strong>${Math.round(peakHeat)}</strong></div>
         </div>
         <div class="funk-results-subhead">Timing</div>
@@ -2982,8 +2634,8 @@
       const acc = accuracyPct();
       const grade = gradeFor(acc, cleared);
       els.gameStatus.textContent = cleared
-        ? `Cleared Midnight Breakout: Deluxe · ${acc}% · Grade ${grade}`
-        : `Failed Midnight Breakout: Deluxe · ${acc}% · Grade F`;
+        ? `Cleared Midnight Breakout · ${acc}% · Grade ${grade}`
+        : `Failed Midnight Breakout · ${acc}% · Grade F`;
       startBtn.hidden = false;
       startBtn.textContent = "Play Again";
       updateHud(cleared ? "CLEAR" : "FAIL");
@@ -2994,12 +2646,14 @@
       if (cleared) burstConfetti(28);
     }
 
+    let travelPxCached = 242;
     function frame(now) {
       if (!running) return;
       const t = now - startTime;
-      const travelPx = board.clientHeight - 78;
+      const travelPx = travelPxCached;
       const songStart = COUNTDOWN_BEATS * BEAT_MS;
       const songDur = SONG_BEATS * BEAT_MS;
+      const appearWindow = SCROLL_BEATS * BEAT_MS;
 
       if (t < songStart) {
         const remain = Math.ceil((songStart - t) / BEAT_MS);
@@ -3024,7 +2678,6 @@
       const songBeatFloat = Math.max(0, (t - songStart) / BEAT_MS);
       const progress = Math.max(0, Math.min(1, (t - songStart) / songDur));
       progressFill.style.width = `${progress * 100}%`;
-      beatEl.textContent = `BEAT ${Math.min(SONG_BEATS, Math.max(0, Math.floor(songBeatFloat)))}`;
 
       if (countdownDone && songBeatFloat < SONG_BEATS) {
         const sec = sectionAt(songBeatFloat);
@@ -3033,34 +2686,30 @@
           lastSection = sec;
           sectionLabel.textContent = SECTION_LABELS[sec] || sec.toUpperCase();
           flashBanner(SECTION_LABELS[sec] || sec.toUpperCase());
-          stage.dataset.section = sec;
-          if (typeof funkAudio.playSection === "function") funkAudio.playSection(sec);
-          if ((sec === "drop" || sec === "final") && typeof funkAudio.playDropImpact === "function") {
-            funkAudio.playDropImpact();
-            burstConfetti(18);
-            stage.classList.add("is-drop");
-            setTimeout(() => stage.classList.remove("is-drop"), 700);
+          if ((sec === "drop" || sec === "build") && typeof funkAudio.playSection === "function") {
+            funkAudio.playSection(sec);
           }
         }
       }
 
-      noteEls.forEach((note) => {
+      for (let i = 0; i < noteEls.length; i += 1) {
+        const note = noteEls[i];
         if (note.hit && !note.holding) {
-          note.el.hidden = true;
-          return;
+          if (!note.el.hidden) note.el.hidden = true;
+          continue;
         }
         if (note.avoided) {
-          note.el.hidden = true;
-          return;
+          if (!note.el.hidden) note.el.hidden = true;
+          continue;
         }
 
-        const appear = note.time - SCROLL_BEATS * BEAT_MS;
-        const progressNote = (t - appear) / (SCROLL_BEATS * BEAT_MS);
-        if (progressNote < 0 || (progressNote > 1.35 && !note.holding)) {
-          note.el.hidden = true;
+        const appear = note.time - appearWindow;
+        if (t < appear - 30 || (t > note.holdEnd + HIT_WINDOW.bad && !note.holding)) {
+          if (!note.el.hidden) note.el.hidden = true;
         } else {
+          const progressNote = (t - appear) / appearWindow;
           note.el.hidden = false;
-          const y = Math.min(progressNote, 1) * travelPx;
+          const y = Math.min(Math.max(progressNote, 0), 1) * travelPx;
           note.el.style.transform = `translateY(${y}px)`;
         }
 
@@ -3096,13 +2745,6 @@
             score += 150 * multiplier;
             heat = Math.min(100, heat + 4);
             updateHud("SAFE");
-          } else if (note.rival) {
-            note.avoided = true;
-            note.el.classList.add("is-miss");
-            health = Math.max(0, health - 2);
-            if (typeof funkAudio.playRival === "function") funkAudio.playRival();
-            updateHud("RIVAL");
-            if (health <= 0) endSong(false);
           } else {
             note.missed = true;
             note.el.classList.add("is-miss");
@@ -3110,24 +2752,16 @@
             if (health <= 0) endSong(false);
           }
         }
-      });
+      }
 
       const beat = Math.floor(t / BEAT_MS);
       if (beat !== lastBeat && beat >= 0 && beat < COUNTDOWN_BEATS + SONG_BEATS) {
         lastBeat = beat;
         stage.classList.toggle("is-beat", beat % 2 === 0);
-        board.classList.toggle("is-beat", beat % 2 === 0);
-        if (heat > 0 && combo === 0) heat = Math.max(0, heat - 1.2);
-        root.querySelectorAll(".funk-dancer").forEach((dancer, i) => {
-          dancer.classList.toggle("is-step", (beat + i) % 2 === 0);
-        });
-        root.querySelectorAll(".funk-fan").forEach((fan, i) => {
-          fan.classList.toggle("is-bounce", (beat + i) % 2 === 0);
-        });
-        const leds = root.querySelectorAll(".funk-led-wall span");
-        leds.forEach((led, i) => {
-          led.style.opacity = String(0.25 + ((beat + i * 3) % 5) * 0.15);
-        });
+        if (heat > 0 && combo === 0) heat = Math.max(0, heat - 1.5);
+        for (let i = 0; i < dancers.length; i += 1) {
+          dancers[i].classList.toggle("is-step", (beat + i) % 2 === 0);
+        }
       }
 
       if (t > songStart + songDur + BEAT_MS * 1.5) {
@@ -3185,13 +2819,12 @@
       progressFill.style.width = "0%";
       sectionLabel.textContent = "INTRO";
       bannerEl.hidden = true;
-      stage.dataset.section = "intro";
-      offsetNeedle.style.transform = "translateX(0px)";
       updateHud("");
       els.gameStatus.textContent = "Countdown… then keep the beat!";
       getAudioContext()?.resume?.();
       funkAudio.stop();
       funkAudio.startTrack(COUNTDOWN_BEATS + SONG_BEATS, COUNTDOWN_BEATS);
+      travelPxCached = Math.max(180, board.clientHeight - 78);
       startTime = performance.now();
       cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(frame);
