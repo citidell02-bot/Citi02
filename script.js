@@ -11,64 +11,25 @@
     return new URL(relativePath, APP_BASE).href;
   }
 
-  const SPORTS_BALL_LAYOUT = [
-    { ball: "soccer", top: "4%", left: "2%", size: 78, delay: "0s", rot: "-8deg" },
-    { ball: "basketball", top: "3%", left: "22%", size: 64, delay: "-0.8s", rot: "12deg" },
-    { ball: "tennis", top: "6%", left: "48%", size: 44, delay: "-1.6s", rot: "-16deg" },
-    { ball: "football", top: "2%", left: "68%", size: 96, delay: "-0.4s", rot: "20deg" },
-    { ball: "baseball", top: "5%", right: "3%", size: 52, delay: "-2.2s", rot: "8deg" },
-    { ball: "soccer", top: "16%", right: "6%", size: 70, delay: "-1.1s", rot: "-14deg" },
-    { ball: "basketball", top: "18%", left: "6%", size: 86, delay: "-2.8s", rot: "6deg" },
-    { ball: "tennis", top: "22%", left: "30%", size: 40, delay: "-3.5s", rot: "18deg" },
-    { ball: "baseball", top: "20%", left: "55%", size: 48, delay: "-0.9s", rot: "-10deg" },
-    { ball: "football", top: "28%", right: "12%", size: 88, delay: "-4.0s", rot: "-24deg" },
-    { ball: "soccer", top: "34%", left: "1%", size: 60, delay: "-1.9s", rot: "10deg" },
-    { ball: "tennis", top: "36%", left: "18%", size: 46, delay: "-2.6s", rot: "-6deg" },
-    { ball: "basketball", top: "32%", left: "42%", size: 72, delay: "-3.8s", rot: "15deg" },
-    { ball: "baseball", top: "38%", right: "4%", size: 50, delay: "-0.5s", rot: "-20deg" },
-    { ball: "football", top: "44%", left: "8%", size: 90, delay: "-3.2s", rot: "22deg" },
-    { ball: "soccer", top: "48%", right: "8%", size: 66, delay: "-1.4s", rot: "-12deg" },
-    { ball: "tennis", top: "50%", left: "36%", size: 42, delay: "-4.4s", rot: "9deg" },
-    { ball: "basketball", top: "52%", left: "60%", size: 74, delay: "-2.1s", rot: "-18deg" },
-    { ball: "baseball", top: "58%", left: "2%", size: 56, delay: "-3.0s", rot: "14deg" },
-    { ball: "soccer", top: "60%", left: "24%", size: 58, delay: "-0.7s", rot: "-4deg" },
-    { ball: "football", top: "56%", right: "2%", size: 84, delay: "-4.7s", rot: "16deg" },
-    { ball: "tennis", top: "66%", right: "16%", size: 44, delay: "-1.7s", rot: "-22deg" },
-    { ball: "basketball", top: "68%", left: "10%", size: 78, delay: "-2.4s", rot: "7deg" },
-    { ball: "baseball", top: "70%", left: "45%", size: 50, delay: "-3.6s", rot: "19deg" },
-    { ball: "soccer", top: "74%", right: "6%", size: 62, delay: "-0.2s", rot: "-9deg" },
-    { ball: "football", top: "78%", left: "28%", size: 92, delay: "-4.2s", rot: "-26deg" },
-    { ball: "tennis", top: "80%", left: "4%", size: 40, delay: "-1.3s", rot: "11deg" },
-    { ball: "basketball", top: "82%", right: "22%", size: 68, delay: "-2.9s", rot: "-15deg" },
-    { ball: "baseball", top: "84%", left: "58%", size: 54, delay: "-3.9s", rot: "5deg" },
-    { ball: "soccer", top: "88%", right: "4%", size: 72, delay: "-0.6s", rot: "13deg" },
-  ];
-
-  function renderSportsBalls() {
-    const wrap = document.getElementById("sports-balls");
-    if (!wrap) return;
-    wrap.innerHTML = "";
-
-    SPORTS_BALL_LAYOUT.forEach((item) => {
-      const img = document.createElement("img");
-      img.className = `sports-ball sports-ball-${item.ball}`;
-      img.alt = "";
-      img.decoding = "async";
+  function loadSportsBallImages() {
+    document.querySelectorAll("img.sports-ball[data-ball]").forEach((img) => {
+      const name = img.dataset.ball;
+      if (!name) return;
+      const resolved = assetUrl(`assets/balls/${name}.png`);
+      if (img.getAttribute("src") !== resolved) {
+        img.src = resolved;
+      }
       img.loading = "eager";
-      img.width = item.size;
-      img.height = item.size;
-      img.src = assetUrl(`assets/balls/${item.ball}.png`);
-      img.style.setProperty("--ball-size", `${item.size}px`);
-      img.style.setProperty("--ball-delay", item.delay);
-      img.style.setProperty("--ball-rot", item.rot);
-      if (item.top) img.style.top = item.top;
-      if (item.bottom) img.style.bottom = item.bottom;
-      if (item.left) img.style.left = item.left;
-      if (item.right) img.style.right = item.right;
       img.onerror = () => {
-        console.warn(`Sports ball failed to load: ${img.src}`);
+        // Retry once from document-relative path if script-base resolution fails
+        const fallback = `assets/balls/${name}.png`;
+        if (!img.dataset.retry) {
+          img.dataset.retry = "1";
+          img.src = fallback;
+        } else {
+          console.warn(`Sports ball failed to load: ${img.src}`);
+        }
       };
-      wrap.appendChild(img);
     });
   }
 
@@ -1471,7 +1432,7 @@
   });
 
   applyTheme(state.activeTheme);
-  renderSportsBalls();
+  loadSportsBallImages();
   renderQuests();
   renderXp();
   renderTokens();

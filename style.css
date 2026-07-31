@@ -1152,7 +1152,7 @@ body {
 /* Theme packs */
 body[data-theme="sports"] {
   --bg-deep: #74c7f2;
-  --bg-panel: rgba(8, 42, 28, 0.88);
+  --bg-panel: rgba(8, 42, 28, 0.72);
   --bg-panel-edge: rgba(46, 204, 113, 0.4);
   --text: #f2fff6;
   --text-muted: #b7d7c4;
@@ -1294,11 +1294,18 @@ body[data-theme="sports"] .sports-scene {
 }
 
 
+/* Fixed overlay above UI so balls stay visible around the scene */
 .sports-balls {
-  position: absolute;
+  display: none;
+  position: fixed;
   inset: 0;
-  pointer-events: none;
   z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body[data-theme="sports"] .sports-balls {
+  display: block;
 }
 
 .sports-ball {
@@ -1306,14 +1313,39 @@ body[data-theme="sports"] .sports-scene {
   width: var(--ball-size, 64px);
   height: var(--ball-size, 64px);
   object-fit: contain;
-  filter: drop-shadow(0 12px 18px rgba(20, 50, 40, 0.4));
-  opacity: 0.95;
+  filter: drop-shadow(0 12px 18px rgba(20, 50, 40, 0.45));
+  opacity: 0.97;
   animation: sports-float 7.5s ease-in-out infinite;
   animation-delay: var(--ball-delay, 0s);
   user-select: none;
   -webkit-user-drag: none;
   will-change: transform;
 }
+
+.sports-balls .sports-ball:nth-child(1) { --ball-size: 78px; --ball-delay: 0s; --ball-rot: -8deg; top: 4%; left: 2%; }
+.sports-balls .sports-ball:nth-child(2) { --ball-size: 70px; --ball-delay: -0.8s; --ball-rot: 12deg; top: 3%; left: 20%; }
+.sports-balls .sports-ball:nth-child(3) { --ball-size: 46px; --ball-delay: -1.6s; --ball-rot: -16deg; top: 7%; left: 48%; }
+.sports-balls .sports-ball:nth-child(4) { --ball-size: 96px; --ball-delay: -0.4s; --ball-rot: 20deg; top: 2%; left: 70%; }
+.sports-balls .sports-ball:nth-child(5) { --ball-size: 54px; --ball-delay: -2.2s; --ball-rot: 8deg; top: 5%; right: 2%; }
+.sports-balls .sports-ball:nth-child(6) { --ball-size: 68px; --ball-delay: -1.1s; --ball-rot: -14deg; top: 15%; right: 4%; }
+.sports-balls .sports-ball:nth-child(7) { --ball-size: 84px; --ball-delay: -2.8s; --ball-rot: 6deg; top: 17%; left: 3%; }
+.sports-balls .sports-ball:nth-child(8) { --ball-size: 42px; --ball-delay: -3.5s; --ball-rot: 18deg; top: 22%; left: 28%; }
+.sports-balls .sports-ball:nth-child(9) { --ball-size: 50px; --ball-delay: -0.9s; --ball-rot: -10deg; top: 20%; left: 58%; }
+.sports-balls .sports-ball:nth-child(10) { --ball-size: 90px; --ball-delay: -4s; --ball-rot: -24deg; top: 27%; right: 10%; }
+.sports-balls .sports-ball:nth-child(11) { --ball-size: 62px; --ball-delay: -1.9s; --ball-rot: 10deg; top: 34%; left: 1%; }
+.sports-balls .sports-ball:nth-child(12) { --ball-size: 44px; --ball-delay: -2.6s; --ball-rot: -6deg; top: 38%; right: 3%; }
+.sports-balls .sports-ball:nth-child(13) { --ball-size: 74px; --ball-delay: -3.8s; --ball-rot: 15deg; top: 44%; left: 2%; }
+.sports-balls .sports-ball:nth-child(14) { --ball-size: 52px; --ball-delay: -0.5s; --ball-rot: -20deg; top: 48%; right: 5%; }
+.sports-balls .sports-ball:nth-child(15) { --ball-size: 88px; --ball-delay: -3.2s; --ball-rot: 22deg; top: 54%; left: 1%; }
+.sports-balls .sports-ball:nth-child(16) { --ball-size: 66px; --ball-delay: -1.4s; --ball-rot: -12deg; top: 58%; right: 2%; }
+.sports-balls .sports-ball:nth-child(17) { --ball-size: 40px; --ball-delay: -4.4s; --ball-rot: 9deg; top: 64%; left: 3%; }
+.sports-balls .sports-ball:nth-child(18) { --ball-size: 76px; --ball-delay: -2.1s; --ball-rot: -18deg; top: 68%; right: 4%; }
+.sports-balls .sports-ball:nth-child(19) { --ball-size: 56px; --ball-delay: -3s; --ball-rot: 14deg; top: 72%; left: 2%; }
+.sports-balls .sports-ball:nth-child(20) { --ball-size: 70px; --ball-delay: -0.7s; --ball-rot: -4deg; top: 76%; right: 14%; }
+.sports-balls .sports-ball:nth-child(21) { --ball-size: 92px; --ball-delay: -4.7s; --ball-rot: 16deg; top: 80%; left: 22%; }
+.sports-balls .sports-ball:nth-child(22) { --ball-size: 44px; --ball-delay: -1.7s; --ball-rot: -22deg; top: 84%; right: 6%; }
+.sports-balls .sports-ball:nth-child(23) { --ball-size: 68px; --ball-delay: -2.4s; --ball-rot: 7deg; top: 88%; left: 6%; }
+.sports-balls .sports-ball:nth-child(24) { --ball-size: 50px; --ball-delay: -3.6s; --ball-rot: 19deg; top: 90%; right: 24%; }
 
 @keyframes sports-float {
   0%, 100% { transform: translateY(0) rotate(var(--ball-rot, 0deg)) scale(1); }
@@ -1326,9 +1358,9 @@ body[data-theme="sports"] .sports-scene {
   }
 
   .sports-ball {
-    opacity: 0.9;
-    width: calc(var(--ball-size, 64px) * 0.78);
-    height: calc(var(--ball-size, 64px) * 0.78);
+    opacity: 0.92;
+    width: calc(var(--ball-size, 64px) * 0.72);
+    height: calc(var(--ball-size, 64px) * 0.72);
   }
 }
 
