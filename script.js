@@ -45,15 +45,15 @@
       id: "aurora",
       name: "Aurora Drift",
       cost: 30,
-      desc: "Night drift track with neon barriers and tire smoke.",
+      desc: "Night drift track with lane marks and tire smoke.",
       swatch: "linear-gradient(90deg, #5adcff, #ff6bb5)",
     },
     {
       id: "goldrush",
-      name: "Gold Rush",
+      name: "Sky Runway",
       cost: 40,
-      desc: "Champion gold prestige look.",
-      swatch: "linear-gradient(90deg, #f2be37, #ff9f1c)",
+      desc: "Golden-hour sky, runway lights, and jets overhead.",
+      swatch: "linear-gradient(90deg, #7ec8f0, #f2be37)",
     },
   ];
   const GAMES = [

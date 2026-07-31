@@ -1679,15 +1679,234 @@ body[data-theme="aurora"] .aurora-scene {
 }
 
 body[data-theme="goldrush"] {
-  --bg-deep: #120e05;
-  --bg-panel: rgba(28, 22, 8, 0.88);
-  --bg-panel-edge: rgba(242, 190, 55, 0.3);
-  --text: #fff4d4;
-  --text-muted: #c2a86a;
+  --bg-deep: #6aa9d4;
+  --bg-panel: rgba(24, 28, 40, 0.86);
+  --bg-panel-edge: rgba(242, 190, 55, 0.35);
+  --text: #fff8e8;
+  --text-muted: #c9b48a;
   --neon-cyan: #f2be37;
   --neon-magenta: #ff9f1c;
   --neon-lime: #ffe566;
   --shadow-neon: 0 0 24px rgba(242, 190, 55, 0.3);
+}
+
+body[data-theme="goldrush"] .bg-grid {
+  opacity: 0.1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(to bottom, black 0%, transparent 50%);
+}
+
+body[data-theme="goldrush"] .bg-glow {
+  background:
+    radial-gradient(ellipse 55% 40% at 78% 18%, rgba(255, 210, 120, 0.45), transparent 60%),
+    radial-gradient(ellipse 45% 30% at 20% 25%, rgba(160, 210, 255, 0.3), transparent 55%),
+    radial-gradient(ellipse 60% 28% at 50% 100%, rgba(40, 50, 40, 0.35), transparent 55%);
+}
+
+.plane-scene {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body[data-theme="goldrush"] .plane-scene {
+  display: block;
+}
+
+.plane-sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    #7eb9e0 0%,
+    #a8d0ef 28%,
+    #d7e8f5 52%,
+    #f3d7a8 74%,
+    #e8b86a 100%
+  );
+}
+
+.plane-sun {
+  position: absolute;
+  top: 14%;
+  right: 16%;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #fff8dc 0%, #ffd27a 40%, rgba(255, 170, 70, 0.35) 62%, transparent 74%);
+  box-shadow: 0 0 70px rgba(255, 200, 100, 0.5);
+  animation: plane-sun-glow 11s ease-in-out infinite alternate;
+}
+
+.plane-cloud {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  box-shadow:
+    20px 8px 0 -4px rgba(255, 255, 255, 0.9),
+    -18px 10px 0 -6px rgba(255, 255, 255, 0.82),
+    0 10px 20px rgba(40, 80, 120, 0.12);
+  animation: plane-cloud-drift 30s linear infinite;
+}
+
+.plane-cloud-a {
+  width: 110px;
+  height: 36px;
+  top: 12%;
+  left: 10%;
+}
+
+.plane-cloud-b {
+  width: 150px;
+  height: 42px;
+  top: 22%;
+  left: 38%;
+  opacity: 0.9;
+  animation-duration: 38s;
+  animation-direction: reverse;
+}
+
+.plane-cloud-c {
+  width: 90px;
+  height: 30px;
+  top: 16%;
+  right: 28%;
+  opacity: 0.85;
+  animation-duration: 26s;
+}
+
+.plane-horizon {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 38%;
+  background:
+    linear-gradient(to top, #3d4a38 0%, #5a6b4a 35%, #8a9a6e 70%, transparent 100%);
+}
+
+.plane-runway {
+  position: absolute;
+  left: 50%;
+  bottom: -8%;
+  width: 58%;
+  height: 52%;
+  transform: translateX(-50%) perspective(700px) rotateX(58deg);
+  transform-origin: center bottom;
+  background: linear-gradient(to top, #2b3038 0%, #3a414c 100%);
+  border-left: 5px solid rgba(255, 255, 255, 0.65);
+  border-right: 5px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    0 0 0 3px rgba(242, 190, 55, 0.35),
+    0 -16px 40px rgba(0, 0, 0, 0.35);
+}
+
+.plane-runway-marks {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 8px;
+  height: 40%;
+  transform: translateX(-50%) perspective(700px) rotateX(58deg);
+  transform-origin: center bottom;
+  background: repeating-linear-gradient(
+    to top,
+    #fff 0 22px,
+    transparent 22px 44px
+  );
+  opacity: 0.85;
+  filter: drop-shadow(0 0 6px rgba(255, 230, 150, 0.35));
+}
+
+.plane-jet {
+  position: absolute;
+  width: 72px;
+  height: 22px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 36'%3E%3Cg fill='%23242832'%3E%3Cpath d='M8 18h78l18-4v4l-10 2 10 2v3l-18-3H52l-10 12h-8l8-12H22l-10 6H6l6-6-6-6h6l10 6z'/%3E%3Cpath d='M40 16l24-10h6L54 16z'/%3E%3Cpath d='M42 22l20 10h6L56 22z'/%3E%3C/g%3E%3Ccircle cx='20' cy='18' r='2.2' fill='%23f2be37'/%3E%3C/svg%3E") center / contain no-repeat;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.28));
+  animation: plane-fly 18s linear infinite;
+}
+
+.plane-jet-a {
+  top: 24%;
+  left: 8%;
+  animation: plane-bob 4.5s ease-in-out infinite;
+}
+
+.plane-jet-b {
+  top: 34%;
+  right: 12%;
+  left: auto;
+  width: 58px;
+  height: 18px;
+  opacity: 0.85;
+  animation: plane-bob-flip 5.5s ease-in-out infinite;
+}
+
+.plane-contrail {
+  position: absolute;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  filter: blur(1.5px);
+}
+
+.plane-contrail-a {
+  top: calc(24% + 10px);
+  left: 4%;
+  width: 120px;
+  opacity: 0.7;
+}
+
+.plane-contrail-b {
+  top: calc(34% + 8px);
+  right: 8%;
+  width: 100px;
+  opacity: 0.55;
+}
+
+@keyframes plane-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes plane-bob-flip {
+  0%, 100% { transform: scaleX(-1) translateY(0); }
+  50% { transform: scaleX(-1) translateY(-10px); }
+}
+
+@keyframes plane-sun-glow {
+  from { opacity: 0.85; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes plane-cloud-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(28px); }
+}
+
+@media (max-width: 700px) {
+  .plane-sun {
+    width: 68px;
+    height: 68px;
+  }
+
+  .plane-jet-b,
+  .plane-contrail-b,
+  .plane-cloud-c {
+    display: none;
+  }
+
+  .plane-runway {
+    width: 70%;
+  }
 }
 
 @media (max-width: 560px) {
