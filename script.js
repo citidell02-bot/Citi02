@@ -1,38 +1,6 @@
 (() => {
   "use strict";
 
-  const APP_BASE = (() => {
-    const script = document.querySelector('script[src*="script.js"]');
-    if (script?.src) return new URL(".", script.src).href;
-    return new URL(".", window.location.href).href;
-  })();
-
-  function assetUrl(relativePath) {
-    return new URL(relativePath, APP_BASE).href;
-  }
-
-  function loadSportsBallImages() {
-    document.querySelectorAll("img.sports-ball[data-ball]").forEach((img) => {
-      const name = img.dataset.ball;
-      if (!name) return;
-      const resolved = assetUrl(`assets/balls/${name}.png`);
-      if (img.getAttribute("src") !== resolved) {
-        img.src = resolved;
-      }
-      img.loading = "eager";
-      img.onerror = () => {
-        // Retry once from document-relative path if script-base resolution fails
-        const fallback = `assets/balls/${name}.png`;
-        if (!img.dataset.retry) {
-          img.dataset.retry = "1";
-          img.src = fallback;
-        } else {
-          console.warn(`Sports ball failed to load: ${img.src}`);
-        }
-      };
-    });
-  }
-
   const STORAGE_KEY = "study-quest-state-v1";
   const XP_PER_FOCUS = 25;
   const XP_PER_LEVEL = 100;
@@ -63,7 +31,7 @@
       id: "sports",
       name: "Sports Arena",
       cost: 20,
-      desc: "Sky-blue stadium day, green pitch, and detailed sports balls all around.",
+      desc: "Sky-blue stadium day with a green pitch below.",
       swatch: "linear-gradient(90deg, #2ecc71, #e74c3c)",
     },
     {
@@ -1432,7 +1400,6 @@
   });
 
   applyTheme(state.activeTheme);
-  loadSportsBallImages();
   renderQuests();
   renderXp();
   renderTokens();
