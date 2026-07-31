@@ -1361,15 +1361,14 @@ body {
 .dash-canvas {
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 8.5;
-  max-height: 360px;
+  aspect-ratio: 2 / 1;
+  max-height: 320px;
   border-radius: 12px;
   border: 1px solid rgba(90, 220, 255, 0.28);
   background: #120820;
   display: block;
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: inset 0 0 40px rgba(255, 77, 141, 0.08);
 }
 
 .dash-overlay {
