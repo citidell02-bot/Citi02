@@ -2184,7 +2184,7 @@
       playKickSfx();
 
       // Keeper dive: bias toward ball with randomness; harder later
-      const skill = 0.35 + kickIndex * 0.08;
+      const skill = 0.42 + kickIndex * 0.09;
       const track = Math.random() < skill;
       const diveTargetX = track ? tx : GOAL.x + 40 + Math.random() * (GOAL.w - 80);
       const diveTargetY = track
@@ -2193,7 +2193,7 @@
       keeper.diveX = diveTargetX - keeper.homeX;
       keeper.diveY = diveTargetY - keeper.homeY;
       // clamp dive reach
-      const maxReach = 150 + kickIndex * 8;
+      const maxReach = 158 + kickIndex * 9;
       const reach = Math.hypot(keeper.diveX, keeper.diveY) || 1;
       if (reach > maxReach) {
         keeper.diveX *= maxReach / reach;
@@ -2201,6 +2201,8 @@
       }
       keeper.diving = true;
       keeper.t = 0;
+      // Arrive ahead of the ball (faster reaction)
+      keeper.diveDur = Math.max(0.22, ball.dur * 0.7);
     }
 
     function drawPitch() {
@@ -2398,8 +2400,8 @@
         ball.x = BALL_HOME.x + (ball.tx - BALL_HOME.x) * ease;
         ball.y = BALL_HOME.y + (ball.ty - BALL_HOME.y) * ease - arc;
 
-        keeper.t = Math.min(1, keeper.t + dt / (ball.dur * 0.92));
-        const ke = 1 - Math.pow(1 - keeper.t, 1.6);
+        keeper.t = Math.min(1, keeper.t + dt / (keeper.diveDur || ball.dur * 0.7));
+        const ke = 1 - Math.pow(1 - keeper.t, 1.25);
         keeper.x = keeper.homeX + keeper.diveX * ke;
         keeper.y = keeper.homeY + keeper.diveY * ke;
 
