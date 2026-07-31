@@ -65,9 +65,9 @@
     },
     {
       id: "memory",
-      name: "Memory Flip",
+      name: "Funk Night",
       cost: 25,
-      desc: "Match pairs during your break.",
+      desc: "Hit arrow notes on beat in a night rhythm battle.",
     },
     {
       id: "numbers",
@@ -1190,7 +1190,7 @@
     els.gameTitle.textContent = game.name;
 
     if (id === "reaction") startReactionGame();
-    else if (id === "memory") startMemoryGame();
+    else if (id === "memory") startFunkGame();
     else if (id === "numbers") startNumberGame();
   }
 
@@ -1244,63 +1244,308 @@
     gameCleanup = () => clearTimeout(timeoutId);
   }
 
-  function startMemoryGame() {
-    const symbols = ["A", "B", "C", "A", "B", "C"];
-    for (let i = symbols.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [symbols[i], symbols[j]] = [symbols[j], symbols[i]];
+  function startFunkGame() {
+    const DIRS = ["left", "down", "up", "right"];
+    const ARROWS = { left: "←", down: "↓", up: "↑", right: "→" };
+    const KEY_MAP = {
+      ArrowLeft: "left",
+      ArrowDown: "down",
+      ArrowUp: "up",
+      ArrowRight: "right",
+      a: "left",
+      s: "down",
+      w: "up",
+      d: "right",
+      A: "left",
+      S: "down",
+      W: "up",
+      D: "right",
+    };
+    const BPM = 140;
+    const BEAT_MS = 60000 / BPM;
+    const SCROLL_BEATS = 3.2;
+    const HIT_WINDOW = { sick: 70, good: 120, bad: 170 };
+    const SONG_BEATS = 48;
+
+    const chart = [];
+    for (let beat = 4; beat < SONG_BEATS; beat += 1) {
+      if (beat % 8 === 0) {
+        chart.push({ beat, dir: DIRS[beat % 4] });
+        chart.push({ beat: beat + 0.5, dir: DIRS[(beat + 2) % 4] });
+      } else if (beat % 2 === 0) {
+        chart.push({ beat, dir: DIRS[(beat / 2) % 4] });
+      } else if (beat % 3 === 0) {
+        chart.push({ beat, dir: DIRS[(beat + 1) % 4] });
+      }
     }
 
-    let flipped = [];
-    let matched = 0;
-    let locked = false;
+    let running = false;
+    let finished = false;
+    let startTime = 0;
+    let score = 0;
+    let combo = 0;
+    let maxCombo = 0;
+    let health = 50;
+    let hits = { sick: 0, good: 0, bad: 0, miss: 0 };
+    let rafId = 0;
+    let lastBeat = -1;
 
-    const grid = document.createElement("div");
-    grid.className = "memory-grid";
-    els.gameStatus.textContent = "Flip cards and match all three pairs.";
+    const root = document.createElement("div");
+    root.className = "funk-game";
 
-    symbols.forEach((symbol, index) => {
-      const card = document.createElement("button");
-      card.type = "button";
-      card.className = "memory-card";
-      card.dataset.symbol = symbol;
-      card.dataset.index = String(index);
-      card.textContent = symbol;
+    const hud = document.createElement("div");
+    hud.className = "funk-hud";
+    const scoreEl = document.createElement("div");
+    scoreEl.className = "funk-score";
+    const comboEl = document.createElement("div");
+    comboEl.className = "funk-combo";
+    const judgeEl = document.createElement("div");
+    judgeEl.className = "funk-judge";
+    hud.append(scoreEl, comboEl, judgeEl);
 
-      card.addEventListener("click", () => {
-        if (locked || card.classList.contains("is-flipped") || card.classList.contains("is-matched")) {
-          return;
-        }
-        card.classList.add("is-flipped");
-        flipped.push(card);
-        if (flipped.length < 2) return;
+    const healthWrap = document.createElement("div");
+    healthWrap.className = "funk-health";
+    const healthFill = document.createElement("div");
+    healthFill.className = "funk-health-fill";
+    healthWrap.appendChild(healthFill);
 
-        locked = true;
-        const [a, b] = flipped;
-        if (a.dataset.symbol === b.dataset.symbol) {
-          a.classList.add("is-matched");
-          b.classList.add("is-matched");
-          matched += 1;
-          flipped = [];
-          locked = false;
-          if (matched === 3) {
-            els.gameStatus.textContent = "All pairs matched — break well spent!";
-          }
-        } else {
-          setTimeout(() => {
-            a.classList.remove("is-flipped");
-            b.classList.remove("is-flipped");
-            flipped = [];
-            locked = false;
-          }, 550);
+    const board = document.createElement("div");
+    board.className = "funk-board";
+
+    const receptors = {};
+    const lanes = {};
+    DIRS.forEach((dir) => {
+      const lane = document.createElement("div");
+      lane.className = `funk-lane funk-lane-${dir}`;
+      const receptor = document.createElement("button");
+      receptor.type = "button";
+      receptor.className = `funk-receptor funk-receptor-${dir}`;
+      receptor.dataset.silent = "1";
+      receptor.dataset.dir = dir;
+      receptor.setAttribute("aria-label", dir);
+      receptor.textContent = ARROWS[dir];
+      receptor.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        tryHit(dir);
+      });
+      lane.appendChild(receptor);
+      board.appendChild(lane);
+      receptors[dir] = receptor;
+      lanes[dir] = lane;
+    });
+
+    const startBtn = document.createElement("button");
+    startBtn.type = "button";
+    startBtn.className = "btn btn-primary funk-start";
+    startBtn.dataset.silent = "1";
+    startBtn.textContent = "Start Track";
+
+    const hint = document.createElement("p");
+    hint.className = "funk-hint";
+    hint.textContent = "Keys: ←↓↑→ or A S W D · click receptors";
+
+    root.append(hud, healthWrap, board, startBtn, hint);
+    els.gameStage.appendChild(root);
+    els.gameStatus.textContent = "Hit the arrows when they reach the receptors.";
+    els.gameModal.querySelector(".game-modal-card")?.classList.add("is-funk");
+
+    const noteEls = chart.map((note) => {
+      const el = document.createElement("div");
+      el.className = `funk-note funk-note-${note.dir}`;
+      el.textContent = ARROWS[note.dir];
+      el.hidden = true;
+      lanes[note.dir].appendChild(el);
+      return {
+        ...note,
+        el,
+        hit: false,
+        missed: false,
+        time: note.beat * BEAT_MS,
+      };
+    });
+
+    function updateHud(judgeText = "") {
+      scoreEl.textContent = `Score ${score}`;
+      comboEl.textContent = combo > 0 ? `${combo} combo` : "";
+      judgeEl.textContent = judgeText;
+      healthFill.style.width = `${Math.max(0, Math.min(100, health))}%`;
+      healthWrap.classList.toggle("is-low", health < 30);
+    }
+
+    function playHitTone(quality) {
+      const freqs = { sick: 880, good: 700, bad: 480, miss: 180 };
+      playToneNotes([{ freq: freqs[quality] || 400, start: 0, dur: 0.07 }], "square", quality === "miss" ? 0.06 : 0.09);
+    }
+
+    function playBeatTick() {
+      playToneNotes([{ freq: 220, start: 0, dur: 0.04 }], "triangle", 0.05);
+    }
+
+    function judgeHit(delta) {
+      const abs = Math.abs(delta);
+      if (abs <= HIT_WINDOW.sick) return "sick";
+      if (abs <= HIT_WINDOW.good) return "good";
+      if (abs <= HIT_WINDOW.bad) return "bad";
+      return null;
+    }
+
+    function applyJudge(quality) {
+      if (quality === "sick") {
+        score += 350;
+        combo += 1;
+        health = Math.min(100, health + 4);
+        hits.sick += 1;
+      } else if (quality === "good") {
+        score += 200;
+        combo += 1;
+        health = Math.min(100, health + 2);
+        hits.good += 1;
+      } else if (quality === "bad") {
+        score += 50;
+        combo = 0;
+        health = Math.max(0, health - 4);
+        hits.bad += 1;
+      } else {
+        combo = 0;
+        health = Math.max(0, health - 8);
+        hits.miss += 1;
+      }
+      maxCombo = Math.max(maxCombo, combo);
+      updateHud(quality ? quality.toUpperCase() : "MISS");
+      playHitTone(quality || "miss");
+    }
+
+    function tryHit(dir) {
+      if (!running || finished) return;
+      const now = performance.now() - startTime;
+      const receptor = receptors[dir];
+      receptor.classList.add("is-pressed");
+      setTimeout(() => receptor.classList.remove("is-pressed"), 80);
+
+      let best = null;
+      let bestDelta = Infinity;
+      noteEls.forEach((note) => {
+        if (note.dir !== dir || note.hit || note.missed) return;
+        const delta = now - note.time;
+        if (Math.abs(delta) < Math.abs(bestDelta) && Math.abs(delta) <= HIT_WINDOW.bad) {
+          best = note;
+          bestDelta = delta;
         }
       });
 
-      grid.appendChild(card);
-    });
+      if (!best) return;
+      const quality = judgeHit(bestDelta);
+      if (!quality) return;
+      best.hit = true;
+      best.el.classList.add("is-hit");
+      applyJudge(quality);
+      if (health <= 0) endSong(false);
+    }
 
-    els.gameStage.appendChild(grid);
-    gameCleanup = null;
+    function endSong(cleared) {
+      if (finished) return;
+      finished = true;
+      running = false;
+      cancelAnimationFrame(rafId);
+      const total = hits.sick + hits.good + hits.bad + hits.miss;
+      const accuracy = total
+        ? Math.round(((hits.sick + hits.good * 0.75 + hits.bad * 0.4) / total) * 100)
+        : 0;
+      els.gameStatus.textContent = cleared
+        ? `Track cleared! Score ${score} · ${accuracy}% · Max combo ${maxCombo}`
+        : `Drained out… Score ${score} · ${accuracy}% · Max combo ${maxCombo}`;
+      startBtn.hidden = false;
+      startBtn.textContent = "Play Again";
+      updateHud(cleared ? "CLEAR" : "FAIL");
+    }
+
+    function frame(now) {
+      if (!running) return;
+      const t = now - startTime;
+      const travelPx = board.clientHeight - 67;
+
+      noteEls.forEach((note) => {
+        if (note.hit) {
+          note.el.hidden = true;
+          return;
+        }
+        const appear = note.time - SCROLL_BEATS * BEAT_MS;
+        const progress = (t - appear) / (SCROLL_BEATS * BEAT_MS);
+        if (progress < 0 || progress > 1.25) {
+          note.el.hidden = true;
+        } else {
+          note.el.hidden = false;
+          const y = progress * travelPx;
+          note.el.style.transform = `translateY(${y}px)`;
+        }
+        if (!note.missed && !note.hit && t - note.time > HIT_WINDOW.bad) {
+          note.missed = true;
+          note.el.classList.add("is-miss");
+          applyJudge(null);
+          if (health <= 0) {
+            endSong(false);
+          }
+        }
+      });
+
+      const beat = Math.floor(t / BEAT_MS);
+      if (beat !== lastBeat && beat >= 0 && beat < SONG_BEATS) {
+        lastBeat = beat;
+        if (beat % 2 === 0) playBeatTick();
+        board.classList.toggle("is-beat", beat % 2 === 0);
+      }
+
+      if (t > (SONG_BEATS + 2) * BEAT_MS) {
+        endSong(true);
+        return;
+      }
+
+      rafId = requestAnimationFrame(frame);
+    }
+
+    function startTrack() {
+      noteEls.forEach((note) => {
+        note.hit = false;
+        note.missed = false;
+        note.el.hidden = true;
+        note.el.classList.remove("is-hit", "is-miss");
+        note.el.style.transform = "translateY(0)";
+      });
+      score = 0;
+      combo = 0;
+      maxCombo = 0;
+      health = 50;
+      hits = { sick: 0, good: 0, bad: 0, miss: 0 };
+      finished = false;
+      running = true;
+      lastBeat = -1;
+      startBtn.hidden = true;
+      startTime = performance.now() + 400;
+      updateHud("GET READY");
+      els.gameStatus.textContent = "Keep the beat — don't drop the combo!";
+      getAudioContext()?.resume?.();
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(frame);
+    }
+
+    const onKeyDown = (e) => {
+      const dir = KEY_MAP[e.key];
+      if (!dir) return;
+      e.preventDefault();
+      tryHit(dir);
+    };
+
+    startBtn.addEventListener("click", startTrack);
+    document.addEventListener("keydown", onKeyDown);
+    updateHud();
+
+    gameCleanup = () => {
+      running = false;
+      finished = true;
+      cancelAnimationFrame(rafId);
+      document.removeEventListener("keydown", onKeyDown);
+      els.gameModal.querySelector(".game-modal-card")?.classList.remove("is-funk");
+    };
   }
 
   function startNumberGame() {
@@ -1350,7 +1595,7 @@
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("button");
-    if (!btn || btn.disabled) return;
+    if (!btn || btn.disabled || btn.dataset.silent === "1") return;
     playSaveSound();
   });
 

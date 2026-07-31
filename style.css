@@ -1039,6 +1039,11 @@ body {
   box-shadow: 0 0 40px rgba(0, 229, 255, 0.15);
 }
 
+.game-modal-card.is-funk {
+  width: min(560px, 100%);
+  max-height: min(92vh, 720px);
+}
+
 .game-modal-head {
   display: flex;
   align-items: center;
@@ -1092,34 +1097,172 @@ body {
   background: var(--neon-cyan);
 }
 
-.memory-grid {
+.funk-game {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.55rem;
+  gap: 0.7rem;
 }
 
-.memory-card {
-  aspect-ratio: 1;
-  border-radius: 10px;
-  border: 1px solid rgba(0, 229, 255, 0.25);
-  background: rgba(4, 8, 18, 0.8);
-  color: transparent;
+.funk-hud {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.funk-score { color: var(--neon-lime); }
+.funk-combo { text-align: center; color: var(--neon-magenta); }
+.funk-judge {
+  text-align: right;
+  color: var(--neon-cyan);
+  min-height: 1em;
+}
+
+.funk-health {
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 77, 141, 0.45);
+  background: rgba(4, 8, 18, 0.85);
+  overflow: hidden;
+}
+
+.funk-health-fill {
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, #ff4d8d, #5adcff);
+  transition: width 80ms linear;
+}
+
+.funk-health.is-low {
+  box-shadow: 0 0 12px rgba(255, 77, 109, 0.45);
+}
+
+.funk-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.4rem;
+  height: 320px;
+  padding: 0.4rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 77, 141, 0.35);
+  background:
+    linear-gradient(180deg, rgba(20, 8, 28, 0.95), rgba(8, 12, 28, 0.98)),
+    repeating-linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0 2px,
+      transparent 2px 18px
+    );
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(90, 220, 255, 0.08);
+}
+
+.funk-board.is-beat {
+  box-shadow:
+    inset 0 0 40px rgba(90, 220, 255, 0.08),
+    0 0 18px rgba(255, 77, 141, 0.18);
+}
+
+.funk-lane {
+  position: relative;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.funk-receptor {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 2;
+  width: 58px;
+  height: 58px;
+  transform: translateX(-50%);
+  border-radius: 12px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  background: rgba(8, 10, 20, 0.85);
+  color: #fff;
+  font-size: 1.45rem;
+  line-height: 1;
   cursor: pointer;
+  transition: transform 60ms ease, box-shadow 60ms ease, border-color 60ms ease;
 }
 
-.memory-card.is-flipped,
-.memory-card.is-matched {
-  color: var(--bg-deep);
-  background: var(--neon-cyan);
-  border-color: var(--neon-cyan);
+.funk-receptor-left { border-color: #ff4d8d; color: #ff4d8d; }
+.funk-receptor-down { border-color: #5adcff; color: #5adcff; }
+.funk-receptor-up { border-color: #3dff9a; color: #3dff9a; }
+.funk-receptor-right { border-color: #f2be37; color: #f2be37; }
+
+.funk-receptor.is-pressed {
+  transform: translateX(-50%) scale(0.92);
+  box-shadow: 0 0 18px currentColor;
 }
 
-.memory-card.is-matched {
-  background: var(--neon-lime);
-  border-color: var(--neon-lime);
-  cursor: default;
+.funk-note {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 1;
+  width: 52px;
+  height: 52px;
+  margin-left: -26px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 3px solid currentColor;
+  background: rgba(10, 12, 22, 0.92);
+  font-size: 1.3rem;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.funk-note-left { color: #ff4d8d; }
+.funk-note-down { color: #5adcff; }
+.funk-note-up { color: #3dff9a; }
+.funk-note-right { color: #f2be37; }
+
+.funk-note.is-hit {
+  opacity: 0;
+  transition: opacity 80ms ease;
+}
+
+.funk-note.is-miss {
+  opacity: 0.25;
+  filter: grayscale(1);
+}
+
+.funk-start {
+  justify-self: center;
+  min-width: 160px;
+}
+
+.funk-hint {
+  margin: 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 560px) {
+  .funk-board {
+    height: 280px;
+  }
+
+  .funk-receptor {
+    width: 48px;
+    height: 48px;
+    font-size: 1.2rem;
+  }
+
+  .funk-note {
+    width: 44px;
+    height: 44px;
+    margin-left: -22px;
+    font-size: 1.1rem;
+  }
 }
 
 .number-grid {
