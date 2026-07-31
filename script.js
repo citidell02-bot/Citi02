@@ -67,7 +67,7 @@
       id: "memory",
       name: "Funk Night",
       cost: 25,
-      desc: "FNF-style arrow battle with music, holds, combos, and stage flair.",
+      desc: "Ultra-detailed FNF-style battle: dense chart, mines, heat meter, and full funk soundtrack.",
     },
     {
       id: "numbers",
@@ -397,23 +397,39 @@
         playCountdown() {},
         playResult() {},
         playHold() {},
+        playSection() {},
+        beatDur: 60 / Math.max(1, bpm || 120),
       };
     }
 
     const master = ctx.createGain();
-    master.gain.value = 0.3;
-    master.connect(ctx.destination);
+    master.gain.value = 0.32;
+
+    let compressor = null;
+    try {
+      compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -18;
+      compressor.knee.value = 18;
+      compressor.ratio.value = 3.2;
+      compressor.attack.value = 0.004;
+      compressor.release.value = 0.18;
+      master.connect(compressor);
+      compressor.connect(ctx.destination);
+    } catch (e) {
+      master.connect(ctx.destination);
+    }
 
     const music = ctx.createGain();
-    music.gain.value = 0.8;
+    music.gain.value = 0.78;
     music.connect(master);
 
     const sfx = ctx.createGain();
     sfx.gain.value = 1;
     sfx.connect(master);
 
-    const noiseBuffer = createNoiseBuffer(ctx, 0.3);
+    const noiseBuffer = createNoiseBuffer(ctx, 0.35);
     const beatDur = 60 / bpm;
+    let trackToken = 0;
 
     function playOsc({
       type = "square",
@@ -423,145 +439,330 @@
       peak = 0.1,
       dest = music,
       slideTo = null,
+      attack = 0.012,
     }) {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = type;
-      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.setValueAtTime(Math.max(1, freq), t);
       if (slideTo != null) {
         osc.frequency.exponentialRampToValueAtTime(Math.max(1, slideTo), t + dur);
       }
+      const atk = Math.min(attack, dur * 0.35);
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(peak, t + Math.min(0.02, dur * 0.25));
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + atk);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
       osc.connect(gain);
       gain.connect(dest);
       osc.start(t);
-      osc.stop(t + dur + 0.03);
+      osc.stop(t + dur + 0.04);
     }
 
-    function playNoise({ t, dur = 0.1, peak = 0.2, hp = 800, dest = music }) {
+    function playNoise({ t, dur = 0.1, peak = 0.2, hp = 800, lp = null, dest = music }) {
       const src = ctx.createBufferSource();
       src.buffer = noiseBuffer;
       const filter = ctx.createBiquadFilter();
       filter.type = "highpass";
       filter.frequency.value = hp;
+      let last = filter;
+      src.connect(filter);
+      if (lp != null) {
+        const low = ctx.createBiquadFilter();
+        low.type = "lowpass";
+        low.frequency.value = lp;
+        filter.connect(low);
+        last = low;
+      }
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(peak, t + 0.005);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.004);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      src.connect(filter);
-      filter.connect(gain);
+      last.connect(gain);
       gain.connect(dest);
       src.start(t);
-      src.stop(t + dur + 0.02);
+      src.stop(t + dur + 0.03);
     }
 
-    function kick(t) {
-      playOsc({ type: "sine", freq: 160, slideTo: 42, t, dur: 0.16, peak: 0.85, dest: music });
-      playNoise({ t, dur: 0.04, peak: 0.12, hp: 80, dest: music });
+    function kick(t, accent = 1) {
+      playOsc({
+        type: "sine",
+        freq: 168,
+        slideTo: 40,
+        t,
+        dur: 0.18,
+        peak: 0.9 * accent,
+        dest: music,
+        attack: 0.008,
+      });
+      playOsc({
+        type: "triangle",
+        freq: 90,
+        slideTo: 36,
+        t,
+        dur: 0.1,
+        peak: 0.28 * accent,
+        dest: music,
+      });
+      playNoise({ t, dur: 0.035, peak: 0.1 * accent, hp: 60, lp: 400, dest: music });
     }
 
-    function snare(t) {
-      playNoise({ t, dur: 0.12, peak: 0.32, hp: 1400, dest: music });
-      playOsc({ type: "triangle", freq: 210, t, dur: 0.08, peak: 0.14, dest: music });
+    function snare(t, accent = 1) {
+      playNoise({ t, dur: 0.13, peak: 0.34 * accent, hp: 1200, lp: 9000, dest: music });
+      playNoise({ t, dur: 0.08, peak: 0.16 * accent, hp: 2800, dest: music });
+      playOsc({ type: "triangle", freq: 205, t, dur: 0.07, peak: 0.15 * accent, dest: music });
     }
 
-    function hat(t, open = false) {
+    function clap(t) {
+      playNoise({ t, dur: 0.05, peak: 0.26, hp: 1600, dest: sfx });
+      playNoise({ t: t + 0.012, dur: 0.07, peak: 0.22, hp: 2100, dest: sfx });
+      playNoise({ t: t + 0.026, dur: 0.09, peak: 0.16, hp: 2600, dest: sfx });
+    }
+
+    function hat(t, open = false, accent = 1) {
       playNoise({
         t,
-        dur: open ? 0.14 : 0.045,
-        peak: open ? 0.12 : 0.08,
-        hp: open ? 6000 : 7500,
+        dur: open ? 0.16 : 0.038,
+        peak: (open ? 0.13 : 0.085) * accent,
+        hp: open ? 5200 : 7800,
         dest: music,
       });
     }
 
-    function clap(t) {
-      playNoise({ t, dur: 0.09, peak: 0.28, hp: 1800, dest: sfx });
-      playNoise({ t: t + 0.015, dur: 0.07, peak: 0.18, hp: 2200, dest: sfx });
+    function tom(t, high = false) {
+      playOsc({
+        type: "sine",
+        freq: high ? 220 : 140,
+        slideTo: high ? 110 : 70,
+        t,
+        dur: 0.16,
+        peak: 0.28,
+        dest: music,
+      });
+      playNoise({ t, dur: 0.06, peak: 0.08, hp: 400, lp: 1800, dest: music });
     }
 
-    function bass(t, freq) {
-      playOsc({ type: "sawtooth", freq, t, dur: 0.22, peak: 0.16, dest: music });
-      playOsc({ type: "square", freq: freq * 0.5, t, dur: 0.2, peak: 0.1, dest: music });
+    function cowbell(t) {
+      playOsc({ type: "square", freq: 800, t, dur: 0.07, peak: 0.07, dest: music });
+      playOsc({ type: "square", freq: 540, t, dur: 0.08, peak: 0.055, dest: music });
+      playOsc({ type: "triangle", freq: 1080, t, dur: 0.05, peak: 0.03, dest: music });
     }
 
-    function chord(t, freqs) {
+    function click(t, bright = false) {
+      playOsc({
+        type: "square",
+        freq: bright ? 1200 : 880,
+        t,
+        dur: 0.04,
+        peak: bright ? 0.09 : 0.06,
+        dest: sfx,
+      });
+    }
+
+    function bass(t, freq, slideTo = null, dur = 0.22, peak = 0.17) {
+      playOsc({
+        type: "sawtooth",
+        freq,
+        slideTo: slideTo != null ? slideTo : freq * 0.96,
+        t,
+        dur,
+        peak,
+        dest: music,
+        attack: 0.01,
+      });
+      playOsc({
+        type: "square",
+        freq: freq * 0.5,
+        t,
+        dur: dur * 0.9,
+        peak: peak * 0.55,
+        dest: music,
+      });
+    }
+
+    function chord(t, freqs, dur = 0.3, peak = 0.042) {
       freqs.forEach((freq, i) => {
         playOsc({
-          type: "square",
+          type: i % 2 === 0 ? "square" : "triangle",
           freq,
-          t: t + i * 0.005,
-          dur: 0.28,
-          peak: 0.045,
+          t: t + i * 0.004,
+          dur,
+          peak,
           dest: music,
         });
       });
     }
 
-    function lead(t, freq) {
-      playOsc({ type: "square", freq, t, dur: 0.14, peak: 0.08, dest: music });
-      playOsc({ type: "triangle", freq: freq * 2, t, dur: 0.1, peak: 0.03, dest: music });
+    function lead(t, freq, dur = 0.13, peak = 0.085) {
+      playOsc({ type: "square", freq, t, dur, peak, dest: music });
+      playOsc({ type: "triangle", freq: freq * 2, t, dur: dur * 0.75, peak: peak * 0.35, dest: music });
+    }
+
+    function arp(t, freq) {
+      playOsc({ type: "triangle", freq, t, dur: 0.07, peak: 0.055, dest: music });
+      playOsc({ type: "square", freq: freq * 1.5, t: t + 0.01, dur: 0.05, peak: 0.02, dest: music });
+    }
+
+    function sectionNameForSongBeat(songBeat, songBeats) {
+      const p = songBeat / Math.max(1, songBeats);
+      if (p < 0.125) return "intro";
+      if (p < 0.375) return "verse";
+      if (p < 0.5) return "build";
+      if (p < 0.75) return "drop";
+      if (p < 0.875) return "break";
+      return "outro";
+    }
+
+    function densityFor(section) {
+      if (section === "intro") return 0.45;
+      if (section === "verse") return 0.7;
+      if (section === "build") return 0.85;
+      if (section === "drop") return 1;
+      if (section === "break") return 0.4;
+      return 0.55;
+    }
+
+    function drumFill(t, beatDurLocal) {
+      hat(t, false, 1.1);
+      tom(t + beatDurLocal * 0.25, true);
+      tom(t + beatDurLocal * 0.5, false);
+      snare(t + beatDurLocal * 0.75, 1.15);
+      hat(t + beatDurLocal * 0.875, true, 1.1);
     }
 
     function startTrack(totalBeats, countdownBeats) {
-      const t0 = ctx.currentTime + 0.06;
+      trackToken += 1;
+      const token = trackToken;
+      const t0 = ctx.currentTime + 0.05;
       music.gain.cancelScheduledValues(t0);
       music.gain.setValueAtTime(0.0001, t0);
-      music.gain.exponentialRampToValueAtTime(0.8, t0 + 0.12);
+      music.gain.exponentialRampToValueAtTime(0.78, t0 + 0.14);
 
-      const bassLine = [82.41, 82.41, 98.0, 82.41, 73.42, 73.42, 65.41, 98.0];
+      const songBeats = Math.max(0, totalBeats - countdownBeats);
+      const bassRoot = [82.41, 82.41, 98.0, 73.42, 65.41, 73.42, 98.0, 110.0];
+      const bassSlide = [98.0, 73.42, 82.41, 65.41, 73.42, 98.0, 110.0, 82.41];
       const chords = [
         [196.0, 246.94, 293.66],
         [174.61, 220.0, 261.63],
         [146.83, 185.0, 220.0],
         [164.81, 196.0, 246.94],
+        [196.0, 233.08, 293.66],
+        [130.81, 164.81, 196.0],
       ];
-      const melody = [392.0, 440.0, 493.88, 523.25, 493.88, 440.0, 392.0, 349.23, 329.63, 392.0, 440.0, 523.25];
+      const melody = [
+        392.0, 440.0, 493.88, 523.25, 493.88, 440.0, 392.0, 349.23,
+        329.63, 392.0, 440.0, 523.25, 587.33, 523.25, 493.88, 440.0,
+      ];
+      const arpNotes = [523.25, 659.25, 783.99, 659.25, 587.33, 523.25, 440.0, 523.25];
 
       for (let beat = 0; beat < totalBeats; beat += 1) {
+        if (token !== trackToken) break;
         const t = t0 + beat * beatDur;
         const inCount = beat < countdownBeats;
         const barBeat = beat % 4;
         const step8 = t + beatDur * 0.5;
+        const step16a = t + beatDur * 0.25;
+        const step16b = t + beatDur * 0.75;
 
         if (inCount) {
-          if (barBeat === 0) kick(t);
-          hat(t, false);
+          if (barBeat === 0) kick(t, 0.75);
+          hat(t, false, 0.7);
+          click(t, barBeat === 0);
+          if (barBeat === 2) click(step8, false);
           continue;
         }
 
-        if (barBeat === 0) kick(t);
-        if (barBeat === 2) snare(t);
-        if (beat % 8 === 4) snare(t + beatDur * 0.75);
-        if (beat % 8 === 6) kick(t + beatDur * 0.5);
-        hat(t, beat % 4 === 3);
-        hat(step8, false);
+        const songBeat = beat - countdownBeats;
+        const section = sectionNameForSongBeat(songBeat, songBeats);
+        const dens = densityFor(section);
+        const bar = Math.floor(songBeat / 4);
+        const nearFill = songBeat % 32 === 28 || songBeat % 32 === 29 || songBeat % 32 === 30 || songBeat % 32 === 31;
 
-        const bassFreq = bassLine[beat % bassLine.length];
-        if (beat % 2 === 0) bass(t, bassFreq);
-        else bass(t, bassFreq * 0.75);
-
-        if (beat % 4 === 0) {
-          chord(t, chords[Math.floor(beat / 4) % chords.length]);
+        if (nearFill && songBeat % 32 >= 28 && dens > 0.5) {
+          if (songBeat % 32 === 28) drumFill(t, beatDur);
+          else if (songBeat % 32 === 30) {
+            kick(t, 1.05);
+            snare(step8, 1.1);
+            hat(step16a, false);
+            hat(step16b, true);
+          } else {
+            hat(t, false, 1.05);
+            if (barBeat === 3) snare(t, 1.05);
+          }
+        } else {
+          if (section === "break") {
+            if (barBeat === 0) kick(t, 0.7);
+            if (barBeat === 2) snare(t, 0.65);
+            hat(t, false, 0.55);
+            if (barBeat === 3) hat(step8, true, 0.6);
+          } else {
+            if (barBeat === 0 || (dens > 0.8 && barBeat === 0)) kick(t, dens > 0.9 ? 1.1 : 1);
+            if (section === "drop" && barBeat === 0) kick(step16b, 0.75);
+            if (section === "build" && barBeat === 3) kick(step8, 0.85);
+            if (barBeat === 2) snare(t, dens);
+            if (dens > 0.85 && songBeat % 8 === 5) snare(step8, 0.8);
+            if (dens > 0.7 && songBeat % 8 === 6) kick(step8, 0.9);
+            hat(t, barBeat === 3 && dens > 0.6, dens);
+            hat(step8, false, dens * 0.9);
+            if (dens > 0.8) {
+              hat(step16a, false, 0.55);
+              if (section === "drop") hat(step16b, false, 0.5);
+            }
+            if (dens > 0.75 && songBeat % 8 === 3) clap(t + beatDur * 0.5);
+            if (dens > 0.9 && songBeat % 16 === 7) cowbell(step16b);
+            if (section === "drop" && songBeat % 16 === 12) tom(step8, true);
+          }
         }
 
-        if (beat % 2 === 0) {
-          lead(t + beatDur * 0.25, melody[beat % melody.length]);
+        const root = bassRoot[songBeat % bassRoot.length];
+        const slide = bassSlide[songBeat % bassSlide.length];
+        if (section !== "break") {
+          if (barBeat === 0) bass(t, root, slide, 0.28, 0.18 * dens);
+          else if (barBeat === 1 && dens > 0.6) bass(step8, root * 0.75, root, 0.16, 0.12 * dens);
+          else if (barBeat === 2) bass(t, slide, root, 0.24, 0.16 * dens);
+          else if (dens > 0.75) bass(step8, root * 1.5, root, 0.12, 0.1 * dens);
+        } else if (barBeat === 0 || barBeat === 2) {
+          bass(t, root, null, 0.2, 0.1);
         }
-        if (beat % 8 === 6) {
-          lead(t + beatDur * 0.5, melody[(beat + 3) % melody.length] * 1.5);
+
+        if (barBeat === 0 && dens > 0.4) {
+          const c = chords[bar % chords.length];
+          chord(t, c, section === "drop" ? 0.36 : 0.28, section === "intro" ? 0.03 : 0.045);
+        }
+        if (section === "build" && barBeat === 2) {
+          chord(t, chords[(bar + 1) % chords.length], 0.2, 0.035);
+        }
+
+        if (dens > 0.55) {
+          if (songBeat % 2 === 0) lead(t + beatDur * 0.25, melody[songBeat % melody.length], 0.12, 0.08 * dens);
+          if (section === "drop" && songBeat % 4 === 1) {
+            lead(step8, melody[(songBeat + 4) % melody.length] * 1.5, 0.1, 0.07);
+          }
+          if (section === "verse" && songBeat % 8 === 6) {
+            lead(step8, melody[(songBeat + 2) % melody.length], 0.16, 0.075);
+          }
+        }
+
+        if (dens > 0.7) {
+          const sync = (songBeat % 2 === 0 ? 0.375 : 0.125) * beatDur;
+          arp(t + sync, arpNotes[songBeat % arpNotes.length]);
+          if (section === "drop" || section === "build") {
+            arp(t + beatDur * 0.625, arpNotes[(songBeat + 3) % arpNotes.length] * 0.5);
+          }
+        }
+
+        if (section === "outro" && barBeat === 0) {
+          chord(t, [196.0, 246.94, 311.13, 392.0], 0.4, 0.05);
         }
       }
 
-      // Soft ending hit
       const end = t0 + totalBeats * beatDur;
-      kick(end);
-      chord(end, [196, 246.94, 311.13]);
+      kick(end, 1.1);
+      snare(end + 0.02, 0.8);
+      chord(end, [196.0, 246.94, 311.13, 392.0], 0.45, 0.055);
     }
 
     function stop() {
+      trackToken += 1;
       const now = ctx.currentTime;
       music.gain.cancelScheduledValues(now);
       music.gain.setTargetAtTime(0.0001, now, 0.05);
@@ -569,7 +770,12 @@
 
     function playHit(quality) {
       const t = ctx.currentTime + 0.001;
-      if (quality === "sick") {
+      if (quality === "perfect") {
+        clap(t);
+        playOsc({ type: "square", freq: 1175, t, dur: 0.05, peak: 0.13, dest: sfx });
+        playOsc({ type: "square", freq: 1568, t: t + 0.035, dur: 0.08, peak: 0.11, dest: sfx });
+        playOsc({ type: "triangle", freq: 2349, t: t + 0.06, dur: 0.07, peak: 0.06, dest: sfx });
+      } else if (quality === "sick") {
         clap(t);
         playOsc({ type: "square", freq: 988, t, dur: 0.06, peak: 0.12, dest: sfx });
         playOsc({ type: "square", freq: 1480, t: t + 0.04, dur: 0.09, peak: 0.1, dest: sfx });
@@ -589,6 +795,7 @@
       const t = ctx.currentTime + 0.001;
       playOsc({ type: "square", freq: 660, t, dur: 0.08, peak: 0.08, dest: sfx });
       playOsc({ type: "triangle", freq: 990, t: t + 0.05, dur: 0.1, peak: 0.07, dest: sfx });
+      playOsc({ type: "sine", freq: 1320, t: t + 0.09, dur: 0.08, peak: 0.04, dest: sfx });
     }
 
     function playCountdown(n) {
@@ -596,10 +803,12 @@
       if (n <= 0) {
         playOsc({ type: "square", freq: 523.25, t, dur: 0.08, peak: 0.12, dest: sfx });
         playOsc({ type: "square", freq: 784, t: t + 0.08, dur: 0.14, peak: 0.12, dest: sfx });
+        clap(t + 0.1);
         return;
       }
-      const freq = 320 + (4 - n) * 90;
+      const freq = 320 + (4 - Math.min(4, n)) * 90;
       playOsc({ type: "square", freq, t, dur: 0.1, peak: 0.13, dest: sfx });
+      click(t + 0.02, n === 1);
     }
 
     function playResult(cleared) {
@@ -616,13 +825,47 @@
           });
         });
         clap(t + 0.35);
+        cowbell(t + 0.42);
       } else {
         playOsc({ type: "sawtooth", freq: 220, slideTo: 80, t, dur: 0.35, peak: 0.12, dest: sfx });
         playNoise({ t, dur: 0.3, peak: 0.12, hp: 500, dest: sfx });
+        tom(t + 0.12, false);
       }
     }
 
-    return { startTrack, stop, playHit, playCountdown, playResult, playHold, beatDur };
+    function playSection(name) {
+      const t = ctx.currentTime + 0.001;
+      const map = {
+        intro: [392, 494],
+        verse: [440, 554],
+        build: [523, 659, 784],
+        drop: [659, 784, 988, 1175],
+        break: [330, 392],
+        outro: [494, 392, 330],
+      };
+      const notes = map[String(name || "").toLowerCase()] || [523, 659];
+      notes.forEach((freq, i) => {
+        playOsc({
+          type: "square",
+          freq,
+          t: t + i * 0.07,
+          dur: 0.1,
+          peak: 0.1,
+          dest: sfx,
+        });
+      });
+    }
+
+    return {
+      startTrack,
+      stop,
+      playHit,
+      playCountdown,
+      playResult,
+      playHold,
+      playSection,
+      beatDur,
+    };
   }
 
   // Focus/study cue — firm ascending chime
@@ -1496,6 +1739,7 @@
   function startFunkGame() {
     const DIRS = ["left", "down", "up", "right"];
     const ARROWS = { left: "←", down: "↓", up: "↑", right: "→" };
+    const KEY_HINTS = { left: "A", down: "S", up: "W", right: "D" };
     const KEY_MAP = {
       ArrowLeft: "left",
       ArrowDown: "down",
@@ -1512,39 +1756,111 @@
     };
     const BPM = 150;
     const BEAT_MS = 60000 / BPM;
-    const SCROLL_BEATS = 3.4;
-    const HIT_WINDOW = { sick: 65, good: 115, bad: 165 };
-    const COUNTDOWN_BEATS = 4;
-    const SONG_BEATS = 64;
+    const SCROLL_BEATS = 3.2;
+    const HIT_WINDOW = { perfect: 32, sick: 65, good: 115, bad: 165 };
+    const COUNTDOWN_BEATS = 8;
+    const SONG_BEATS = 96;
+    const MAX_PARTICLES = 28;
+
+    function sectionAt(beat) {
+      const p = beat / SONG_BEATS;
+      if (p < 0.125) return "intro";
+      if (p < 0.375) return "verse";
+      if (p < 0.5) return "build";
+      if (p < 0.75) return "drop";
+      if (p < 0.875) return "break";
+      return "outro";
+    }
 
     const chart = [];
-    const pushNote = (beat, dir, holdBeats = 0) => {
-      chart.push({ beat, dir, holdBeats });
+    const pushNote = (beat, dir, holdBeats = 0, mine = false) => {
+      if (beat < 0 || beat >= SONG_BEATS) return;
+      chart.push({
+        beat,
+        dir: mine ? "mine" : dir,
+        holdBeats: mine ? 0 : holdBeats,
+        mine: Boolean(mine),
+        lane: mine ? dir : dir,
+      });
     };
+
     for (let beat = 0; beat < SONG_BEATS; beat += 1) {
-      const section = Math.floor(beat / 16);
-      if (section === 0) {
-        if (beat % 2 === 0) pushNote(beat, DIRS[(beat / 2) % 4]);
-        if (beat % 8 === 4) pushNote(beat + 0.5, DIRS[(beat + 1) % 4]);
-      } else if (section === 1) {
-        if (beat % 2 === 0) pushNote(beat, DIRS[beat % 4]);
-        if (beat % 4 === 0) pushNote(beat + 0.5, DIRS[(beat + 2) % 4], 0.75);
-        if (beat % 8 === 6) pushNote(beat + 0.25, DIRS[(beat + 3) % 4]);
-      } else if (section === 2) {
-        pushNote(beat, DIRS[beat % 4]);
-        if (beat % 2 === 1) pushNote(beat + 0.5, DIRS[(beat + 2) % 4]);
-        if (beat % 8 === 0) {
-          pushNote(beat + 0.25, DIRS[(beat + 1) % 4]);
-          pushNote(beat + 0.75, DIRS[(beat + 3) % 4], 1);
+      const section = sectionAt(beat);
+      const d0 = DIRS[beat % 4];
+      const d1 = DIRS[(beat + 1) % 4];
+      const d2 = DIRS[(beat + 2) % 4];
+      const d3 = DIRS[(beat + 3) % 4];
+
+      if (section === "intro") {
+        if (beat % 2 === 0) pushNote(beat, d0);
+        if (beat % 4 === 2) pushNote(beat + 0.5, d2);
+        if (beat % 8 === 6) pushNote(beat + 0.25, d1);
+      } else if (section === "verse") {
+        if (beat % 2 === 0) pushNote(beat, d0);
+        if (beat % 2 === 1) pushNote(beat + 0.5, d2);
+        if (beat % 4 === 0) pushNote(beat + 0.5, d1, 0.75);
+        if (beat % 8 === 3) pushNote(beat + 0.25, d3);
+        if (beat % 8 === 5) pushNote(beat + 0.75, d0);
+        if (beat % 16 === 10) {
+          pushNote(beat, d0);
+          pushNote(beat, d2);
         }
+        if (beat % 16 === 14) pushNote(beat + 0.5, d1, 0, true);
+      } else if (section === "build") {
+        pushNote(beat, d0);
+        if (beat % 2 === 0) pushNote(beat + 0.5, d2);
+        if (beat % 2 === 1) {
+          pushNote(beat + 0.25, d1);
+          pushNote(beat + 0.75, d3);
+        }
+        if (beat % 4 === 0) pushNote(beat + 0.5, d3, 1);
+        if (beat % 8 === 4) {
+          pushNote(beat, d1);
+          pushNote(beat, d3);
+        }
+        if (beat % 8 === 6) pushNote(beat + 0.5, d0, 0, true);
+      } else if (section === "drop") {
+        pushNote(beat, d0);
+        pushNote(beat + 0.5, d2);
+        if (beat % 2 === 0) {
+          pushNote(beat + 0.25, d1);
+          pushNote(beat + 0.75, d3);
+        }
+        if (beat % 4 === 1) {
+          pushNote(beat, d0);
+          pushNote(beat, d2);
+        }
+        if (beat % 4 === 0) pushNote(beat + 0.5, d1, 1.25);
+        if (beat % 8 === 3) pushNote(beat + 0.125, d3);
+        if (beat % 8 === 5) pushNote(beat + 0.375, d0);
+        if (beat % 8 === 7) pushNote(beat + 0.625, d2);
+        if (beat % 16 === 8 || beat % 16 === 12) pushNote(beat + 0.5, d3, 0, true);
+        if (beat % 16 === 15) {
+          pushNote(beat, d1);
+          pushNote(beat, d3);
+          pushNote(beat + 0.5, d0, 0.75);
+        }
+      } else if (section === "break") {
+        if (beat % 2 === 0) pushNote(beat, d0);
+        if (beat % 4 === 2) pushNote(beat + 0.5, d2, 1.5);
+        if (beat % 8 === 5) pushNote(beat + 0.25, d1);
+        if (beat % 8 === 7) pushNote(beat + 0.5, d3, 0, true);
       } else {
         if (beat % 2 === 0) {
-          pushNote(beat, DIRS[(beat / 2) % 4]);
-          pushNote(beat + 0.5, DIRS[(beat / 2 + 2) % 4]);
+          pushNote(beat, d0);
+          pushNote(beat + 0.5, d2);
         }
-        if (beat % 4 === 3) pushNote(beat + 0.25, DIRS[(beat + 1) % 4]);
+        if (beat % 4 === 1) pushNote(beat + 0.25, d1);
+        if (beat % 4 === 3) pushNote(beat + 0.75, d3);
+        if (beat % 8 === 4) {
+          pushNote(beat, d1);
+          pushNote(beat, d3);
+        }
+        if (beat % 8 === 6) pushNote(beat + 0.5, d0, 1);
       }
     }
+
+    chart.sort((a, b) => a.beat - b.beat || String(a.lane).localeCompare(String(b.lane)));
 
     let running = false;
     let finished = false;
@@ -1553,12 +1869,22 @@
     let combo = 0;
     let maxCombo = 0;
     let health = 50;
-    let hits = { sick: 0, good: 0, bad: 0, miss: 0 };
+    let heat = 0;
+    let hits = { perfect: 0, sick: 0, good: 0, bad: 0, miss: 0 };
+    let minesAvoided = 0;
+    let minesHit = 0;
     let rafId = 0;
     let lastBeat = -1;
     let lastCountdown = null;
     let countdownDone = false;
+    let lastSection = "";
+    let particleCount = 0;
+    let lastHitDir = "down";
+    let earlyOffsetSum = 0;
+    let lateOffsetSum = 0;
+    let timingSamples = 0;
     const funkAudio = createFunkAudio(BPM);
+    const pressedDirs = new Set();
 
     const root = document.createElement("div");
     root.className = "funk-game";
@@ -1566,16 +1892,36 @@
     const stage = document.createElement("div");
     stage.className = "funk-stage";
     stage.innerHTML = `
+      <div class="funk-spotlights" aria-hidden="true">
+        <span class="funk-spot funk-spot-a"></span>
+        <span class="funk-spot funk-spot-b"></span>
+        <span class="funk-spot funk-spot-c"></span>
+      </div>
+      <div class="funk-city" aria-hidden="true">
+        <span class="funk-window"></span><span class="funk-window"></span>
+        <span class="funk-window"></span><span class="funk-window"></span>
+        <span class="funk-window"></span><span class="funk-window"></span>
+        <span class="funk-window"></span><span class="funk-window"></span>
+      </div>
+      <div class="funk-neon-sign" aria-hidden="true">FUNK NIGHT</div>
+      <div class="funk-speakers" aria-hidden="true">
+        <span class="funk-speaker funk-speaker-left"></span>
+        <span class="funk-speaker funk-speaker-right"></span>
+      </div>
       <div class="funk-stage-glow"></div>
-      <div class="funk-crowd"></div>
+      <div class="funk-crowd" aria-hidden="true"></div>
       <div class="funk-dancer funk-dancer-left" aria-hidden="true">
         <span class="funk-dancer-head"></span>
+        <span class="funk-dancer-arm funk-dancer-arm-l"></span>
         <span class="funk-dancer-body"></span>
+        <span class="funk-dancer-arm funk-dancer-arm-r"></span>
         <span class="funk-dancer-legs"></span>
       </div>
       <div class="funk-dancer funk-dancer-right" aria-hidden="true">
         <span class="funk-dancer-head"></span>
+        <span class="funk-dancer-arm funk-dancer-arm-l"></span>
         <span class="funk-dancer-body"></span>
+        <span class="funk-dancer-arm funk-dancer-arm-r"></span>
         <span class="funk-dancer-legs"></span>
       </div>
       <div class="funk-stage-floor"></div>
@@ -1584,8 +1930,11 @@
     const trackMeta = document.createElement("div");
     trackMeta.className = "funk-track-meta";
     trackMeta.innerHTML = `
-      <div class="funk-track-title">Break Beat Rumble</div>
-      <div class="funk-track-sub">150 BPM · Arcade Mix</div>
+      <div>
+        <div class="funk-track-title">Midnight Breakout</div>
+        <div class="funk-track-sub">150 BPM · Intro / Verse / Build / Drop / Break / Outro</div>
+      </div>
+      <div class="funk-diff">HARD</div>
     `;
 
     const hud = document.createElement("div");
@@ -1598,13 +1947,23 @@
     accEl.className = "funk-acc";
     hud.append(scoreEl, comboEl, accEl);
 
+    const heatWrap = document.createElement("div");
+    heatWrap.className = "funk-heat";
+    heatWrap.innerHTML = `
+      <span class="funk-heat-label">HEAT</span>
+      <div class="funk-heat-track"><div class="funk-heat-fill"></div></div>
+    `;
+    const heatFill = heatWrap.querySelector(".funk-heat-fill");
+
     const statsRow = document.createElement("div");
     statsRow.className = "funk-stats";
     statsRow.innerHTML = `
+      <span data-stat="perfect">PERFECT 0</span>
       <span data-stat="sick">SICK 0</span>
       <span data-stat="good">GOOD 0</span>
       <span data-stat="bad">BAD 0</span>
       <span data-stat="miss">MISS 0</span>
+      <span data-stat="mines">MINES 0</span>
     `;
 
     const healthWrap = document.createElement("div");
@@ -1618,19 +1977,27 @@
 
     const progressWrap = document.createElement("div");
     progressWrap.className = "funk-progress";
-    const progressFill = document.createElement("div");
-    progressFill.className = "funk-progress-fill";
-    progressWrap.appendChild(progressFill);
+    progressWrap.innerHTML = `
+      <div class="funk-progress-track"><div class="funk-progress-fill"></div></div>
+      <span class="funk-section-label">INTRO</span>
+    `;
+    const progressFill = progressWrap.querySelector(".funk-progress-fill");
+    const sectionLabel = progressWrap.querySelector(".funk-section-label");
 
     const boardWrap = document.createElement("div");
     boardWrap.className = "funk-board-wrap";
     const board = document.createElement("div");
     board.className = "funk-board";
+    const particleLayer = document.createElement("div");
+    particleLayer.className = "funk-particles";
     const judgeEl = document.createElement("div");
     judgeEl.className = "funk-judge";
     const countdownEl = document.createElement("div");
     countdownEl.className = "funk-countdown";
-    boardWrap.append(board, judgeEl, countdownEl);
+    const bannerEl = document.createElement("div");
+    bannerEl.className = "funk-section-banner";
+    bannerEl.hidden = true;
+    boardWrap.append(board, particleLayer, judgeEl, countdownEl, bannerEl);
 
     const receptors = {};
     const lanes = {};
@@ -1643,7 +2010,11 @@
       receptor.dataset.silent = "1";
       receptor.dataset.dir = dir;
       receptor.setAttribute("aria-label", dir);
-      receptor.innerHTML = `<span class="funk-receptor-glow"></span><span class="funk-receptor-icon">${ARROWS[dir]}</span>`;
+      receptor.innerHTML = `
+        <span class="funk-receptor-glow"></span>
+        <span class="funk-receptor-icon">${ARROWS[dir]}</span>
+        <span class="funk-receptor-key">${KEY_HINTS[dir]} <small>${ARROWS[dir]}</small></span>
+      `;
       receptor.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         tryHit(dir);
@@ -1666,47 +2037,73 @@
 
     const hint = document.createElement("p");
     hint.className = "funk-hint";
-    hint.textContent = "Keys: ←↓↑→ or A S W D · hold through long notes · click receptors";
+    hint.textContent =
+      "Keys: ←↓↑→ or A S W D · hold long notes · avoid red mines · click receptors";
 
-    root.append(stage, trackMeta, hud, statsRow, healthWrap, progressWrap, boardWrap, results, startBtn, hint);
+    root.append(
+      stage,
+      trackMeta,
+      hud,
+      heatWrap,
+      statsRow,
+      healthWrap,
+      progressWrap,
+      boardWrap,
+      results,
+      startBtn,
+      hint
+    );
     els.gameStage.appendChild(root);
-    els.gameStatus.textContent = "Hit arrows on beat. Keep health above zero to clear the track.";
+    els.gameStatus.textContent =
+      "Midnight Breakout — hit arrows on beat, dodge mines, keep health alive.";
     els.gameModal.querySelector(".game-modal-card")?.classList.add("is-funk");
 
     const noteEls = chart.map((note) => {
+      const laneDir = note.lane || (note.dir === "mine" ? DIRS[Math.floor(note.beat) % 4] : note.dir);
+      const isMine = note.mine || note.dir === "mine";
       const el = document.createElement("div");
-      el.className = `funk-note funk-note-${note.dir}${note.holdBeats > 0 ? " is-hold" : ""}`;
+      el.className = `funk-note funk-note-${isMine ? "mine" : laneDir}${
+        note.holdBeats > 0 ? " is-hold" : ""
+      }${isMine ? " is-mine" : ""}`;
       el.innerHTML = `
-        <span class="funk-note-head">${ARROWS[note.dir]}</span>
+        <span class="funk-note-head">${isMine ? "✕" : ARROWS[laneDir]}</span>
         ${note.holdBeats > 0 ? '<span class="funk-note-tail"></span>' : ""}
       `;
       el.hidden = true;
       if (note.holdBeats > 0) {
         const tail = el.querySelector(".funk-note-tail");
-        const holdPx = Math.max(36, note.holdBeats * 42);
+        const holdPx = Math.max(36, note.holdBeats * 44);
         tail.style.height = `${holdPx}px`;
       }
-      lanes[note.dir].appendChild(el);
+      lanes[laneDir].appendChild(el);
       return {
         ...note,
+        dir: isMine ? laneDir : laneDir,
+        mine: isMine,
         el,
         hit: false,
         missed: false,
         holding: false,
         holdDone: false,
+        avoided: false,
         time: (note.beat + COUNTDOWN_BEATS) * BEAT_MS,
-        holdEnd: (note.beat + COUNTDOWN_BEATS + note.holdBeats) * BEAT_MS,
+        holdEnd: (note.beat + COUNTDOWN_BEATS + (note.holdBeats || 0)) * BEAT_MS,
       };
     });
 
     function accuracyPct() {
-      const total = hits.sick + hits.good + hits.bad + hits.miss;
+      const total = hits.perfect + hits.sick + hits.good + hits.bad + hits.miss;
       if (!total) return 100;
-      return Math.round(((hits.sick + hits.good * 0.75 + hits.bad * 0.35) / total) * 100);
+      return Math.round(
+        ((hits.perfect * 1 + hits.sick * 0.95 + hits.good * 0.75 + hits.bad * 0.35) / total) * 100
+      );
     }
 
     function gradeFor(acc, cleared) {
       if (!cleared) return "F";
+      const totalNotes = hits.perfect + hits.sick + hits.good + hits.bad + hits.miss;
+      const pfc = hits.miss === 0 && hits.bad === 0 && hits.good === 0 && hits.sick === 0 && totalNotes > 0;
+      if (pfc || (acc >= 99 && hits.miss === 0 && hits.bad === 0)) return "S+";
       if (acc >= 97 && hits.miss === 0) return "S";
       if (acc >= 90) return "A";
       if (acc >= 80) return "B";
@@ -1714,20 +2111,84 @@
       return "D";
     }
 
+    function starsFor(grade) {
+      if (grade === "S+") return 5;
+      if (grade === "S") return 4;
+      if (grade === "A") return 3;
+      if (grade === "B") return 2;
+      if (grade === "C") return 1;
+      return 0;
+    }
+
+    function timingFeel() {
+      if (timingSamples < 4) return "Still warming up";
+      const avg = (earlyOffsetSum + lateOffsetSum) / timingSamples;
+      if (Math.abs(avg) < 8) return "Locked to the pocket";
+      if (avg < -12) return "A touch early — ease in";
+      if (avg > 12) return "A touch late — anticipate";
+      return "Solid groove feel";
+    }
+
+    function setDancerPose(dir) {
+      lastHitDir = dir || lastHitDir;
+      root.querySelectorAll(".funk-dancer").forEach((dancer) => {
+        dancer.classList.remove("pose-left", "pose-down", "pose-up", "pose-right");
+        dancer.classList.add(`pose-${lastHitDir}`);
+      });
+    }
+
+    function flashBanner(text) {
+      bannerEl.hidden = false;
+      bannerEl.textContent = text;
+      bannerEl.classList.remove("is-show");
+      void bannerEl.offsetWidth;
+      bannerEl.classList.add("is-show");
+      clearTimeout(flashBanner._t);
+      flashBanner._t = setTimeout(() => {
+        bannerEl.hidden = true;
+        bannerEl.classList.remove("is-show");
+      }, 900);
+    }
+
+    function spawnParticles(dir, quality) {
+      if (quality !== "perfect" && quality !== "sick") return;
+      const n = quality === "perfect" ? 6 : 4;
+      for (let i = 0; i < n; i += 1) {
+        if (particleCount >= MAX_PARTICLES) break;
+        particleCount += 1;
+        const p = document.createElement("span");
+        p.className = `funk-particle funk-particle-${dir} is-${quality}`;
+        const x = 12 + Math.random() * 76;
+        const drift = (Math.random() - 0.5) * 40;
+        p.style.left = `${x}%`;
+        p.style.setProperty("--drift", `${drift}px`);
+        particleLayer.appendChild(p);
+        setTimeout(() => {
+          p.remove();
+          particleCount = Math.max(0, particleCount - 1);
+        }, 480);
+      }
+    }
+
     function updateHud(judgeText) {
       scoreEl.textContent = `Score ${score.toLocaleString()}`;
       comboEl.textContent = combo > 1 ? `${combo} COMBO` : combo === 1 ? "COMBO" : "";
       comboEl.classList.toggle("is-hot", combo >= 10);
+      comboEl.classList.toggle("is-blaze", combo >= 50);
       accEl.textContent = `${accuracyPct()}%`;
       healthFill.style.width = `${Math.max(0, Math.min(100, health))}%`;
       healthWrap.classList.toggle("is-low", health < 30);
+      heatFill.style.width = `${Math.max(0, Math.min(100, heat))}%`;
+      heatWrap.classList.toggle("is-hot", heat >= 70);
+      statsRow.querySelector('[data-stat="perfect"]').textContent = `PERFECT ${hits.perfect}`;
       statsRow.querySelector('[data-stat="sick"]').textContent = `SICK ${hits.sick}`;
       statsRow.querySelector('[data-stat="good"]').textContent = `GOOD ${hits.good}`;
       statsRow.querySelector('[data-stat="bad"]').textContent = `BAD ${hits.bad}`;
       statsRow.querySelector('[data-stat="miss"]').textContent = `MISS ${hits.miss}`;
+      statsRow.querySelector('[data-stat="mines"]').textContent = `MINES ${minesAvoided}`;
       if (judgeText !== undefined) {
         judgeEl.textContent = judgeText;
-        judgeEl.className = `funk-judge${judgeText ? ` is-${String(judgeText).toLowerCase()}` : ""}`;
+        judgeEl.className = `funk-judge${judgeText ? ` is-${String(judgeText).toLowerCase().replace("+", "p")}` : ""}`;
         if (judgeText) {
           judgeEl.classList.remove("is-pop");
           void judgeEl.offsetWidth;
@@ -1745,43 +2206,81 @@
 
     function judgeHit(delta) {
       const abs = Math.abs(delta);
+      if (abs <= HIT_WINDOW.perfect) return "perfect";
       if (abs <= HIT_WINDOW.sick) return "sick";
       if (abs <= HIT_WINDOW.good) return "good";
       if (abs <= HIT_WINDOW.bad) return "bad";
       return null;
     }
 
-    function applyJudge(quality, dir) {
-      if (quality === "sick") {
+    function comboShout(nextCombo) {
+      if (nextCombo === 10 || nextCombo === 25 || nextCombo === 50) {
+        stage.classList.add("is-flash");
+        setTimeout(() => stage.classList.remove("is-flash"), 240);
+        flashBanner(nextCombo === 50 ? "ON FIRE" : nextCombo === 25 ? "GREAT" : "NICE");
+        if (typeof funkAudio.playSection === "function") {
+          funkAudio.playSection(nextCombo === 50 ? "drop" : nextCombo === 25 ? "build" : "verse");
+        }
+      }
+    }
+
+    function applyJudge(quality, dir, fromMine) {
+      if (fromMine) {
+        combo = 0;
+        heat = Math.max(0, heat - 35);
+        health = Math.max(0, health - 18);
+        minesHit += 1;
+        hits.miss += 1;
+        stage.classList.add("is-shake");
+        setTimeout(() => stage.classList.remove("is-shake"), 180);
+        updateHud("MINE");
+        funkAudio.playHit("miss");
+        if (dir) spawnSplash(dir, "miss");
+        return;
+      }
+
+      if (quality === "perfect") {
+        score += 400 + Math.min(combo, 30) * 10;
+        combo += 1;
+        heat = Math.min(100, heat + 8);
+        health = Math.min(100, health + 6);
+        hits.perfect += 1;
+      } else if (quality === "sick") {
         score += 350 + Math.min(combo, 25) * 8;
         combo += 1;
+        heat = Math.min(100, heat + 6);
         health = Math.min(100, health + 5);
         hits.sick += 1;
       } else if (quality === "good") {
         score += 200 + Math.min(combo, 15) * 4;
         combo += 1;
+        heat = Math.min(100, heat + 3);
         health = Math.min(100, health + 2);
         hits.good += 1;
       } else if (quality === "bad") {
         score += 50;
         combo = 0;
+        heat = Math.max(0, heat - 12);
         health = Math.max(0, health - 5);
         hits.bad += 1;
       } else {
         combo = 0;
+        heat = Math.max(0, heat - 20);
         health = Math.max(0, health - 9);
         hits.miss += 1;
         stage.classList.add("is-shake");
         setTimeout(() => stage.classList.remove("is-shake"), 180);
       }
+
       maxCombo = Math.max(maxCombo, combo);
-      if (quality === "sick" && combo > 0 && combo % 10 === 0) {
-        stage.classList.add("is-flash");
-        setTimeout(() => stage.classList.remove("is-flash"), 220);
-      }
+      comboShout(combo);
+      if (dir) setDancerPose(dir);
       updateHud(quality ? quality.toUpperCase() : "MISS");
       funkAudio.playHit(quality || "miss");
-      if (dir) spawnSplash(dir, quality || "miss");
+      if (dir) {
+        spawnSplash(dir, quality || "miss");
+        spawnParticles(dir, quality || "miss");
+      }
     }
 
     function tryHit(dir) {
@@ -1794,7 +2293,7 @@
       let best = null;
       let bestDelta = Infinity;
       noteEls.forEach((note) => {
-        if (note.dir !== dir || note.hit || note.missed) return;
+        if (note.dir !== dir || note.hit || note.missed || note.avoided) return;
         const delta = now - note.time;
         if (Math.abs(delta) < Math.abs(bestDelta) && Math.abs(delta) <= HIT_WINDOW.bad) {
           best = note;
@@ -1803,32 +2302,61 @@
       });
 
       if (!best) return;
+
+      if (best.mine) {
+        best.hit = true;
+        best.el.classList.add("is-hit", "is-mine-hit");
+        applyJudge(null, dir, true);
+        if (health <= 0) endSong(false);
+        return;
+      }
+
       const quality = judgeHit(bestDelta);
       if (!quality) return;
+      earlyOffsetSum += bestDelta < 0 ? bestDelta : 0;
+      lateOffsetSum += bestDelta > 0 ? bestDelta : 0;
+      timingSamples += 1;
       best.hit = true;
       best.holding = best.holdBeats > 0;
       best.el.classList.add("is-hit");
       if (best.holding) best.el.classList.add("is-holding");
-      applyJudge(quality, dir);
+      applyJudge(quality, dir, false);
       if (health <= 0) endSong(false);
     }
 
     function showResults(cleared) {
       const acc = accuracyPct();
       const grade = gradeFor(acc, cleared);
+      const stars = starsFor(grade);
+      const totalNotes = hits.perfect + hits.sick + hits.good + hits.bad + hits.miss;
+      const fc = cleared && hits.miss === 0 && minesHit === 0;
+      const pfc =
+        fc && hits.bad === 0 && hits.good === 0 && hits.sick === 0 && hits.perfect === totalNotes && totalNotes > 0;
+      const starHtml = Array.from({ length: 5 }, (_, i) =>
+        `<span class="funk-star${i < stars ? " is-on" : ""}">★</span>`
+      ).join("");
       results.hidden = false;
       results.innerHTML = `
-        <div class="funk-results-grade is-${grade.toLowerCase()}">${grade}</div>
+        <div class="funk-results-grade is-${grade.toLowerCase().replace("+", "p")}">${grade}</div>
+        <div class="funk-results-stars">${starHtml}</div>
         <div class="funk-results-title">${cleared ? "Track Cleared!" : "Health Drained"}</div>
+        <div class="funk-results-badges">
+          ${fc ? '<span class="funk-badge">FULL COMBO</span>' : ""}
+          ${pfc ? '<span class="funk-badge is-pfc">PERFECT FC</span>' : ""}
+        </div>
         <div class="funk-results-grid">
           <div><span>Score</span><strong>${score.toLocaleString()}</strong></div>
           <div><span>Accuracy</span><strong>${acc}%</strong></div>
           <div><span>Max Combo</span><strong>${maxCombo}</strong></div>
+          <div><span>Perfect</span><strong>${hits.perfect}</strong></div>
           <div><span>Sick</span><strong>${hits.sick}</strong></div>
           <div><span>Good</span><strong>${hits.good}</strong></div>
           <div><span>Bad</span><strong>${hits.bad}</strong></div>
           <div><span>Miss</span><strong>${hits.miss}</strong></div>
+          <div><span>Mines Avoided</span><strong>${minesAvoided}</strong></div>
+          <div><span>Heat Peak</span><strong>${Math.round(heat)}</strong></div>
         </div>
+        <div class="funk-results-feel">${timingFeel()}</div>
       `;
     }
 
@@ -1838,9 +2366,10 @@
       running = false;
       cancelAnimationFrame(rafId);
       const acc = accuracyPct();
+      const grade = gradeFor(acc, cleared);
       els.gameStatus.textContent = cleared
-        ? `Cleared Break Beat Rumble · ${acc}% · Grade ${gradeFor(acc, true)}`
-        : `Failed Break Beat Rumble · ${acc}% · Grade F`;
+        ? `Cleared Midnight Breakout · ${acc}% · Grade ${grade}`
+        : `Failed Midnight Breakout · ${acc}% · Grade F`;
       startBtn.hidden = false;
       startBtn.textContent = "Play Again";
       updateHud(cleared ? "CLEAR" : "FAIL");
@@ -1853,7 +2382,7 @@
     function frame(now) {
       if (!running) return;
       const t = now - startTime;
-      const travelPx = board.clientHeight - 70;
+      const travelPx = board.clientHeight - 78;
       const songStart = COUNTDOWN_BEATS * BEAT_MS;
       const songDur = SONG_BEATS * BEAT_MS;
 
@@ -1870,20 +2399,39 @@
         countdownDone = true;
         countdownEl.hidden = true;
         updateHud("GO");
+        flashBanner("INTRO");
         if (lastCountdown !== 0) {
           lastCountdown = 0;
           funkAudio.playCountdown(0);
         }
       }
 
+      const songBeatFloat = Math.max(0, (t - songStart) / BEAT_MS);
       const progress = Math.max(0, Math.min(1, (t - songStart) / songDur));
       progressFill.style.width = `${progress * 100}%`;
+
+      if (countdownDone && songBeatFloat < SONG_BEATS) {
+        const sec = sectionAt(songBeatFloat);
+        if (sec !== lastSection) {
+          lastSection = sec;
+          sectionLabel.textContent = sec.toUpperCase();
+          flashBanner(sec.toUpperCase());
+          if (typeof funkAudio.playSection === "function" && (sec === "drop" || sec === "build")) {
+            funkAudio.playSection(sec);
+          }
+        }
+      }
 
       noteEls.forEach((note) => {
         if (note.hit && !note.holding) {
           note.el.hidden = true;
           return;
         }
+        if (note.avoided) {
+          note.el.hidden = true;
+          return;
+        }
+
         const appear = note.time - SCROLL_BEATS * BEAT_MS;
         const progressNote = (t - appear) / (SCROLL_BEATS * BEAT_MS);
         if (progressNote < 0 || (progressNote > 1.35 && !note.holding)) {
@@ -1902,6 +2450,7 @@
             note.el.hidden = true;
             score += 120;
             health = Math.min(100, health + 2);
+            heat = Math.min(100, heat + 2);
             updateHud("HOLD");
             funkAudio.playHold();
           } else if (
@@ -1909,19 +2458,27 @@
             !pressedDirs.has(note.dir) &&
             t > note.time + HIT_WINDOW.good
           ) {
-            // Only break holds when keyboard input is active and the lane key was released early.
             note.holding = false;
             note.holdDone = true;
             note.el.classList.remove("is-holding");
-            applyJudge(null, note.dir);
+            applyJudge(null, note.dir, false);
           }
         }
 
-        if (!note.missed && !note.hit && t - note.time > HIT_WINDOW.bad) {
-          note.missed = true;
-          note.el.classList.add("is-miss");
-          applyJudge(null, note.dir);
-          if (health <= 0) endSong(false);
+        if (!note.missed && !note.hit && !note.avoided && t - note.time > HIT_WINDOW.bad) {
+          if (note.mine) {
+            note.avoided = true;
+            note.el.classList.add("is-miss");
+            minesAvoided += 1;
+            score += 150;
+            heat = Math.min(100, heat + 4);
+            updateHud("SAFE");
+          } else {
+            note.missed = true;
+            note.el.classList.add("is-miss");
+            applyJudge(null, note.dir, false);
+            if (health <= 0) endSong(false);
+          }
         }
       });
 
@@ -1930,6 +2487,7 @@
         lastBeat = beat;
         stage.classList.toggle("is-beat", beat % 2 === 0);
         board.classList.toggle("is-beat", beat % 2 === 0);
+        if (heat > 0 && combo === 0) heat = Math.max(0, heat - 1.5);
         root.querySelectorAll(".funk-dancer").forEach((dancer, i) => {
           dancer.classList.toggle("is-step", (beat + i) % 2 === 0);
         });
@@ -1943,35 +2501,45 @@
       rafId = requestAnimationFrame(frame);
     }
 
-    const pressedDirs = new Set();
-
     function startTrack() {
       noteEls.forEach((note) => {
         note.hit = false;
         note.missed = false;
         note.holding = false;
         note.holdDone = false;
+        note.avoided = false;
         note.el.hidden = true;
-        note.el.classList.remove("is-hit", "is-miss", "is-holding");
+        note.el.classList.remove("is-hit", "is-miss", "is-holding", "is-mine-hit");
         note.el.style.transform = "translateY(0)";
       });
       score = 0;
       combo = 0;
       maxCombo = 0;
       health = 50;
-      hits = { sick: 0, good: 0, bad: 0, miss: 0 };
+      heat = 0;
+      hits = { perfect: 0, sick: 0, good: 0, bad: 0, miss: 0 };
+      minesAvoided = 0;
+      minesHit = 0;
       finished = false;
       running = true;
       countdownDone = false;
       lastBeat = -1;
       lastCountdown = null;
+      lastSection = "";
+      earlyOffsetSum = 0;
+      lateOffsetSum = 0;
+      timingSamples = 0;
+      particleLayer.innerHTML = "";
+      particleCount = 0;
       pressedDirs.clear();
       results.hidden = true;
       results.innerHTML = "";
       startBtn.hidden = true;
       countdownEl.hidden = false;
-      countdownEl.textContent = "4";
+      countdownEl.textContent = String(COUNTDOWN_BEATS);
       progressFill.style.width = "0%";
+      sectionLabel.textContent = "INTRO";
+      bannerEl.hidden = true;
       updateHud("");
       els.gameStatus.textContent = "Countdown… then keep the beat!";
       getAudioContext()?.resume?.();
